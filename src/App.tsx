@@ -1,11 +1,186 @@
-import React, { useState } from "react";
-import ThreeScene from "./components/ThreeScene";
-import HumanMeshUsage from "./examples/HumanMeshUsage";
-import CameraModelUsage from "./examples/CameraModelUsage";
-import SphereWithHumanExample from "./examples/SphereWithHumanExample";
+import React, { useRef, useEffect } from "react";
+import * as THREE from "three";
+import { HumanMesh } from "./models/HumanMesh";
+import { SphereMesh } from "./models/SphereMesh";
+import { CameraModel } from "./models/CameraModel";
 
 const App: React.FC = () => {
-  const [activeExample, setActiveExample] = useState<string>("sphere");
+  const mountRef = useRef<HTMLDivElement>(null);
+  const humanRef = useRef<HumanMesh | null>(null);
+  const sphereRef = useRef<SphereMesh | null>(null);
+  const cameraModelRef = useRef<CameraModel | null>(null);
+
+  // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
+  const sceneRef = useRef<{
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    clock: THREE.Clock;
+    animationId?: number;
+  } | null>(null);
+
+  // 씬 초기화 및 설정 (마운트 시 한 번만 실행)
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    // 컨테이너 크기 가져오기
+    const width = mountRef.current.clientWidth;
+    const height = mountRef.current.clientHeight;
+
+    // 씬, 카메라, 렌더러 설정
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 100;
+    camera.position.y = 50;
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    mountRef.current.appendChild(renderer.domElement);
+
+    // 조명 추가
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(1, 1, 1);
+    scene.add(light);
+
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    // 반지름이 50인 구 생성
+    const sphere = new SphereMesh(50, 0xcccccc);
+    sphereRef.current = sphere;
+    scene.add(sphere);
+
+    // 사람 메시 생성
+    const human = new HumanMesh(0x3366ff);
+    humanRef.current = human;
+
+    // 사람 메시의 크기 조정 (구에 비례하게)
+    human.scale.set(5, 5, 5);
+
+    // 사람 메시의 기준점을 발 하단으로 조정하기 위한 컨테이너 생성
+    const humanContainer = new THREE.Object3D();
+
+    // 사람 메시를 컨테이너에 추가하고, 발 하단이 컨테이너의 기준점이 되도록 위치 조정
+    // HumanMesh의 발 하단은 약 y = -0.5 위치에 있으므로, 스케일(5)을 고려하여 y = 2.5로 올림
+    human.position.y = 2.5;
+    humanContainer.add(human);
+
+    // 컨테이너를 구의 표면에 위치시키기
+    humanContainer.position.set(0, 50, 0);
+
+    scene.add(humanContainer);
+
+    // 카메라 모델 생성 및 설정
+    const cameraModel = new CameraModel(camera, mountRef.current);
+    cameraModelRef.current = cameraModel;
+
+    // 카메라가 HumanMesh를 바라보도록 설정
+    cameraModel.setTarget(human);
+
+    // 카메라 위치 및 오프셋 설정 (HumanMesh를 잘 볼 수 있는 위치)
+    cameraModel.setOffset(0, 10, 30);
+    // 1인칭 시점에서 카메라를 머리 위치로 설정 (HumanMesh의 머리는 y = 0.85에 위치)
+    // 스케일이 5이므로 오프셋도 5배로 조정 (0.85 * 5 = 4.25)
+    cameraModel.setFirstPersonOffset(0, 4.25, 0);
+
+    // 시계 생성
+    const clock = new THREE.Clock();
+
+    // sceneRef에 참조 저장
+    sceneRef.current = { scene, camera, renderer, clock };
+
+    // 창 크기 변경 이벤트 처리
+    const handleResize = () => {
+      if (!mountRef.current || !sceneRef.current) return;
+
+      const newWidth = mountRef.current.clientWidth;
+      const newHeight = mountRef.current.clientHeight;
+
+      const { camera, renderer } = sceneRef.current;
+
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newWidth, newHeight);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    // 애니메이션 함수
+    const animate = () => {
+      if (
+        !sceneRef.current ||
+        !humanRef.current ||
+        !sphereRef.current ||
+        !cameraModelRef.current
+      )
+        return;
+
+      sceneRef.current.animationId = requestAnimationFrame(animate);
+
+      const { scene, camera, renderer, clock } = sceneRef.current;
+      const human = humanRef.current;
+
+      const sphere = sphereRef.current;
+      const cameraModel = cameraModelRef.current;
+
+      const time = clock.getElapsedTime();
+
+      // SphereMesh 클래스의 updateRotation 메서드 호출
+      sphere.updateRotation();
+
+      // HumanMesh는 고정된 위치(0, 50, 0)에 유지
+      // SphereMesh만 회전
+
+      // 걷는 애니메이션 적용
+      human.walk(time * 3);
+
+      // 카메라 업데이트
+      cameraModel.update();
+
+      renderer.render(scene, camera);
+    };
+
+    // 애니메이션 시작
+    animate();
+
+    // 클린업 함수
+    return () => {
+      window.removeEventListener("resize", handleResize);
+
+      if (sceneRef.current?.animationId) {
+        cancelAnimationFrame(sceneRef.current.animationId);
+      }
+
+      if (mountRef.current && renderer.domElement) {
+        try {
+          mountRef.current.removeChild(renderer.domElement);
+        } catch (e) {
+          console.warn("App cleanup error:", e);
+        }
+      }
+
+      // 메모리 해제
+      if (humanRef.current) {
+        humanRef.current.dispose();
+      }
+      if (sphereRef.current) {
+        sphereRef.current.dispose();
+      }
+      if (cameraModelRef.current) {
+        cameraModelRef.current.dispose();
+      }
+      renderer.dispose();
+
+      // 참조 정리
+      sceneRef.current = null;
+      humanRef.current = null;
+      sphereRef.current = null;
+      cameraModelRef.current = null;
+    };
+  }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
   return (
     <div className="min-h-screen">
@@ -14,65 +189,23 @@ const App: React.FC = () => {
       </header>
 
       <main className="container mx-auto p-4">
-        <div className="mb-4">
-          <div className="flex space-x-2">
-            <button
-              className={`px-4 py-2 rounded ${
-                activeExample === "human"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200"
-              }`}
-              onClick={() => setActiveExample("human")}
-            >
-              HumanMesh 예제
-            </button>
-            <button
-              className={`px-4 py-2 rounded ${
-                activeExample === "camera"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200"
-              }`}
-              onClick={() => setActiveExample("camera")}
-            >
-              CameraModel 예제
-            </button>
-            <button
-              className={`px-4 py-2 rounded ${
-                activeExample === "sphere"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200"
-              }`}
-              onClick={() => setActiveExample("sphere")}
-            >
-              구 위의 캐릭터
-            </button>
-          </div>
-        </div>
-
         <div className="card bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl mb-4">
-            {activeExample === "human"
-              ? "HumanMesh 예제"
-              : activeExample === "camera"
-              ? "CameraModel 예제"
-              : "구 위의 캐릭터 예제"}
-          </h2>
+          <h2 className="text-xl mb-4">구 위의 캐릭터와 카메라 예제</h2>
           <p className="mb-4 text-gray-700">
-            {activeExample === "human"
-              ? "아래는 Three.js를 사용한 HumanMesh 렌더링 예제입니다."
-              : activeExample === "camera"
-              ? "아래는 Three.js를 사용한 CameraModel 예제입니다. Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요."
-              : "아래는 반지름이 50인 구 위에 캐릭터를 올려둔 예제입니다. 방향키를 사용하여 구를 회전시켜보세요."}
+            반지름이 50인 구 위에 캐릭터를 올려두고 카메라로 캐릭터를 바라보는
+            예제입니다. 방향키를 사용하여 구를 회전시켜보세요. Alt 키를 눌러
+            1인칭/3인칭 시점을 전환할 수 있습니다.
           </p>
 
-          <div className="h-auto border border-gray-200 rounded-lg overflow-hidden">
-            {activeExample === "human" ? (
-              <HumanMeshUsage />
-            ) : activeExample === "camera" ? (
-              <CameraModelUsage />
-            ) : (
-              <SphereWithHumanExample />
-            )}
+          <div
+            ref={mountRef}
+            className="h-96 border border-gray-200 rounded-lg overflow-hidden"
+          />
+
+          <div className="text-center text-gray-700 mt-4">
+            <p>방향키를 사용하여 구를 회전시켜보세요.</p>
+            <p>위/아래 키: X축 회전, 왼쪽/오른쪽 키: Y축 회전</p>
+            <p>Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요.</p>
           </div>
         </div>
       </main>
