@@ -25,8 +25,8 @@ export class HumanMesh extends THREE.Object3D {
     // 재질 생성
     const material = new THREE.MeshPhongMaterial({ color });
 
-    // 머리 생성
-    const headGeometry = new THREE.SphereGeometry(0.25, 32, 32);
+    // 머리 생성 (네모 모양)
+    const headGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
     this.head = new THREE.Mesh(headGeometry, material);
     this.head.position.y = 0.85;
     this.add(this.head);
@@ -158,6 +158,23 @@ export class HumanMesh extends THREE.Object3D {
       0,
       0
     );
+  }
+
+  /**
+   * 머리 회전
+   * @param x X축 회전 (라디안)
+   * @param y Y축 회전 (라디안)
+   * @param z Z축 회전 (라디안)
+   */
+  rotateHead(x: number, y: number, z: number): void {
+    this.head.rotation.set(x, y, z);
+  }
+
+  /**
+   * 머리 회전 초기화
+   */
+  resetHeadRotation(): void {
+    this.head.rotation.set(0, 0, 0);
   }
 
   /**
