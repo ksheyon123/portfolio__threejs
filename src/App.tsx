@@ -1,7 +1,7 @@
 import React from "react";
 import ThreeScene from "./components/ThreeScene";
 
-const App = () => {
+const App: React.FC = () => {
   return (
     <div className="min-h-screen">
       <header>

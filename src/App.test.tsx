@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import App from "./App";
 
 // ThreeScene 컴포넌트를 모의(mock)하여 테스트를 단순화합니다.
-jest.mock("../components/ThreeScene", () => () => (
+jest.mock("./components/ThreeScene", () => () => (
   <div data-testid="three-scene" />
 ));
 

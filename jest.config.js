@@ -6,8 +6,11 @@ module.exports = {
       "<rootDir>/src/tests/__mocks__/fileMock.js",
   },
   setupFilesAfterEnv: ["<rootDir>/src/tests/setupTests.js"],
-  testMatch: ["**/__tests__/**/*.js", "**/?(*.)+(spec|test).js"],
+  testMatch: [
+    "**/__tests__/**/*.{js,ts,tsx}",
+    "**/?(*.)+(spec|test).{js,ts,tsx}",
+  ],
   transform: {
-    "^.+\\.(js|jsx)$": "babel-jest",
+    "^.+\\.(js|jsx|ts|tsx)$": "babel-jest",
   },
 };

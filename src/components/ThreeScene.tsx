@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 
-const ThreeScene = () => {
-  const mountRef = useRef(null);
-  const [renderer, setRenderer] = useState(null);
+const ThreeScene: React.FC = () => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const [renderer, setRenderer] = useState<THREE.WebGLRenderer | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -42,7 +42,7 @@ const ThreeScene = () => {
     camera.position.z = 5;
 
     // 애니메이션 ID 저장 변수
-    let animationId;
+    let animationId: number;
 
     // 애니메이션 함수
     const animate = () => {
