@@ -1,5 +1,6 @@
 import React from "react";
 import ThreeScene from "./components/ThreeScene";
+import HumanMeshUsage from "./examples/HumanMeshUsage";
 
 const App: React.FC = () => {
   return (
@@ -14,8 +15,9 @@ const App: React.FC = () => {
           <p className="mb-4 text-gray-700">
             아래는 Three.js를 사용한 간단한 3D 큐브 렌더링 예제입니다.
           </p>
-          <div className="h-96 border border-gray-200 rounded-lg overflow-hidden">
-            <ThreeScene />
+
+          <div className="h-auto border border-gray-200 rounded-lg overflow-hidden">
+            <HumanMeshUsage />
           </div>
         </div>
       </main>
