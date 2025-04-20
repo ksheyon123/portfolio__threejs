@@ -8,12 +8,21 @@ import { HumanMesh } from "../models/HumanMesh";
  */
 const HumanMeshUsage: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
-  const humanRef = useRef<HumanMesh>(new HumanMesh(0x3366ff));
+  const humanRef = useRef<HumanMesh | null>(null);
   const [poseType, setPoseType] = useState<string>("walk");
 
+  // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
+  const sceneRef = useRef<{
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    clock: THREE.Clock;
+    animationId?: number;
+  } | null>(null);
+
+  // 씬 초기화 및 설정 (마운트 시 한 번만 실행)
   useEffect(() => {
     if (!mountRef.current) return;
-    if (!humanRef.current) return;
 
     // 컨테이너 크기 가져오기
     const width = mountRef.current.clientWidth;
@@ -50,20 +59,81 @@ const HumanMeshUsage: React.FC = () => {
     floor.position.y = -0.5;
     scene.add(floor);
 
-    console.log(humanRef.current);
     // 사람 메시 생성
-    const human = humanRef.current;
+    const human = new HumanMesh(0x3366ff);
+    humanRef.current = human;
     scene.add(human);
 
-    // 애니메이션 ID 저장 변수
-    let animationId: number;
+    // 시계 생성
     const clock = new THREE.Clock();
+
+    // sceneRef에 참조 저장
+    sceneRef.current = { scene, camera, renderer, clock };
+
+    // 창 크기 변경 이벤트 처리
+    const handleResize = () => {
+      if (!mountRef.current || !sceneRef.current) return;
+
+      const newWidth = mountRef.current.clientWidth;
+      const newHeight = mountRef.current.clientHeight;
+
+      const { camera, renderer } = sceneRef.current;
+
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newWidth, newHeight);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    // 클린업 함수
+    return () => {
+      window.removeEventListener("resize", handleResize);
+
+      if (sceneRef.current?.animationId) {
+        cancelAnimationFrame(sceneRef.current.animationId);
+      }
+
+      if (mountRef.current && renderer.domElement) {
+        try {
+          mountRef.current.removeChild(renderer.domElement);
+        } catch (e) {
+          console.warn("HumanMeshUsage cleanup error:", e);
+        }
+      }
+
+      // 메모리 해제
+      if (humanRef.current) {
+        humanRef.current.dispose();
+      }
+      floorGeometry.dispose();
+      floorMaterial.dispose();
+      renderer.dispose();
+
+      // 참조 정리
+      sceneRef.current = null;
+      humanRef.current = null;
+    };
+  }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
+
+  // 애니메이션 및 포즈 변경 처리
+  useEffect(() => {
+    if (!sceneRef.current || !humanRef.current) return;
+
+    const { scene, camera, renderer, clock } = sceneRef.current;
+    const human = humanRef.current;
+    console.log(" : ", human);
+    // 이전 애니메이션 취소
+    if (sceneRef.current.animationId) {
+      cancelAnimationFrame(sceneRef.current.animationId);
+    }
 
     // 애니메이션 함수
     const animate = () => {
-      animationId = requestAnimationFrame(animate);
+      sceneRef.current!.animationId = requestAnimationFrame(animate);
 
       const time = clock.getElapsedTime();
+
       // 현재 선택된 포즈에 따라 다른 애니메이션 적용
       switch (poseType) {
         case "walk":
@@ -104,40 +174,13 @@ const HumanMeshUsage: React.FC = () => {
     // 애니메이션 시작
     animate();
 
-    // 창 크기 변경 이벤트 처리
-    const handleResize = () => {
-      if (!mountRef.current) return;
-
-      const newWidth = mountRef.current.clientWidth;
-      const newHeight = mountRef.current.clientHeight;
-
-      camera.aspect = newWidth / newHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(newWidth, newHeight);
-    };
-
-    window.addEventListener("resize", handleResize);
-
     // 클린업 함수
     return () => {
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(animationId);
-
-      if (mountRef.current && renderer.domElement) {
-        try {
-          mountRef.current.removeChild(renderer.domElement);
-        } catch (e) {
-          console.warn("HumanMeshUsage cleanup error:", e);
-        }
+      if (sceneRef.current?.animationId) {
+        cancelAnimationFrame(sceneRef.current.animationId);
       }
-
-      // 메모리 해제
-      human.dispose();
-      floorGeometry.dispose();
-      floorMaterial.dispose();
-      renderer.dispose();
     };
-  }, [poseType, humanRef.current]); // poseType이 변경될 때마다 useEffect 재실행
+  }, [poseType]); // poseType이 변경될 때마다 실행
 
   // 포즈 변경 핸들러
   const handlePoseChange = (pose: string) => {
