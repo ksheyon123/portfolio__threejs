@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import ThreeScene from "./components/ThreeScene";
 import HumanMeshUsage from "./examples/HumanMeshUsage";
 import CameraModelUsage from "./examples/CameraModelUsage";
+import SphereWithHumanExample from "./examples/SphereWithHumanExample";
 
 const App: React.FC = () => {
-  const [activeExample, setActiveExample] = useState<string>("camera");
+  const [activeExample, setActiveExample] = useState<string>("sphere");
 
   return (
     <div className="min-h-screen">
@@ -35,24 +36,42 @@ const App: React.FC = () => {
             >
               CameraModel 예제
             </button>
+            <button
+              className={`px-4 py-2 rounded ${
+                activeExample === "sphere"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200"
+              }`}
+              onClick={() => setActiveExample("sphere")}
+            >
+              구 위의 캐릭터
+            </button>
           </div>
         </div>
 
         <div className="card bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl mb-4">
-            {activeExample === "human" ? "HumanMesh 예제" : "CameraModel 예제"}
+            {activeExample === "human"
+              ? "HumanMesh 예제"
+              : activeExample === "camera"
+              ? "CameraModel 예제"
+              : "구 위의 캐릭터 예제"}
           </h2>
           <p className="mb-4 text-gray-700">
             {activeExample === "human"
               ? "아래는 Three.js를 사용한 HumanMesh 렌더링 예제입니다."
-              : "아래는 Three.js를 사용한 CameraModel 예제입니다. Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요."}
+              : activeExample === "camera"
+              ? "아래는 Three.js를 사용한 CameraModel 예제입니다. Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요."
+              : "아래는 반지름이 50인 구 위에 캐릭터를 올려둔 예제입니다. 방향키를 사용하여 구를 회전시켜보세요."}
           </p>
 
           <div className="h-auto border border-gray-200 rounded-lg overflow-hidden">
             {activeExample === "human" ? (
               <HumanMeshUsage />
-            ) : (
+            ) : activeExample === "camera" ? (
               <CameraModelUsage />
+            ) : (
+              <SphereWithHumanExample />
             )}
           </div>
         </div>
