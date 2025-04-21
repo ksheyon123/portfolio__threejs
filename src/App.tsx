@@ -4,6 +4,7 @@ import { HumanMesh } from "./models/HumanMesh";
 import { SphereMesh } from "./models/SphereMesh";
 import { CameraModel } from "./models/CameraModel";
 import { BoxMesh } from "./models/BoxMesh";
+import { PlaneMesh } from "./models/PlaneMesh";
 import { InteractionManager } from "./models/InteractionManager";
 
 const App: React.FC = () => {
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const sphereRef = useRef<SphereMesh | null>(null);
   const cameraModelRef = useRef<CameraModel | null>(null);
   const boxRef = useRef<BoxMesh | null>(null);
+  const planeRef = useRef<PlaneMesh | null>(null);
   const interactionManagerRef = useRef<InteractionManager | null>(null);
 
   // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
@@ -61,13 +63,28 @@ const App: React.FC = () => {
     sphereRef.current = sphere;
     sphereContainer.add(sphere);
 
-    // 박스 메시 생성 (크기 20x20x20, 색상 주황색)
+    // 박스 메시 생성 (크기 10x10x10, 색상 주황색)
     const box = new BoxMesh(10, 10, 10, 0xff5533);
     boxRef.current = box;
 
     // 박스를 구 표면의 임의의 위치에 배치
     box.placeOnSphere(sphere, sphere.getRadius());
     sphereContainer.add(box);
+
+    // 길과 같은 PlaneMesh 생성 (너비 5, 높이 30, 색상 회색)
+    const plane = new PlaneMesh(5, 30, 0x335533);
+    planeRef.current = plane;
+    console.log(plane.position);
+
+    // 시작 방향과 끝 방향 설정 (예: 북극에서 적도 방향으로)
+    const startDir = new THREE.Vector3(0, 1, 0); // 북극 방향
+    const endDir = new THREE.Vector3(0, 0, 1); // 적도 방향 (z축 방향)
+    plane.setStartDirection(startDir);
+    plane.setEndDirection(endDir);
+
+    // PlaneMesh를 구 표면에 배치
+    plane.placeOnSphere(sphere, sphere.getRadius());
+    sphereContainer.add(plane);
 
     // 사람 메시 생성
     const human = new HumanMesh(0x3366ff);
@@ -205,6 +222,9 @@ const App: React.FC = () => {
       if (boxRef.current) {
         boxRef.current.dispose();
       }
+      if (planeRef.current) {
+        planeRef.current.dispose();
+      }
       renderer.dispose();
 
       // 참조 정리
@@ -224,11 +244,11 @@ const App: React.FC = () => {
 
       <main className="container mx-auto p-4">
         <div className="card bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl mb-4">구 위의 캐릭터와 카메라 예제</h2>
+          <h2 className="text-xl mb-4">구 위의 캐릭터와 길 예제</h2>
           <p className="mb-4 text-gray-700">
-            반지름이 50인 구 위에 캐릭터를 올려두고 카메라로 캐릭터를 바라보는
-            예제입니다. 방향키를 사용하여 구를 회전시켜보세요. Alt 키를 눌러
-            1인칭/3인칭 시점을 전환할 수 있습니다.
+            반지름이 50인 구 위에 캐릭터와 길(PlaneMesh)을 올려두고 카메라로
+            캐릭터를 바라보는 예제입니다. 방향키를 사용하여 구를 회전시켜보세요.
+            Alt 키를 눌러 1인칭/3인칭 시점을 전환할 수 있습니다.
           </p>
 
           <div
