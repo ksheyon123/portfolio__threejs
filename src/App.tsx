@@ -81,7 +81,6 @@ const App: React.FC = () => {
     // 길과 같은 PlaneMesh 생성 (너비 5, 높이 30, 색상 회색)
     const plane = new PlaneMesh(5, 30, 0x335533);
     planeRef.current = plane;
-    console.log(plane.position);
 
     // 시작 방향과 끝 방향 설정 (예: 북극에서 적도 방향으로)
     const startDir = new THREE.Vector3(0, 1, 0); // 북극 방향
@@ -177,9 +176,6 @@ const App: React.FC = () => {
       // sphereContainer의 rotation을 sphere의 rotation으로 설정
       // 이렇게 하면 구가 회전할 때 구 표면에 위치한 BoxMesh도 함께 회전합니다
       sphereContainer.rotation.copy(sphere.rotation);
-
-      // HumanMesh는 고정된 위치(0, 50, 0)에 유지
-      // sphereContainer가 회전하면서 BoxMesh도 함께 회전
 
       // 포즈 업데이트
       human.updatePose(time);

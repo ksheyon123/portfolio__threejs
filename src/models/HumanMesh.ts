@@ -253,7 +253,7 @@ export class HumanMesh extends THREE.Object3D {
         const elapsedTime = Math.min(time - this.rightArmSwingStartTime, 1);
 
         // 애니메이션 진행률 (0~1)
-        const progress = elapsedTime;
+        const progress = elapsedTime * 8;
 
         // 오른팔을 왼쪽에서 오른쪽으로 움직임
         // 시작 위치: 왼쪽 (-PI/2 라디안, 즉 -90도)
@@ -261,7 +261,7 @@ export class HumanMesh extends THREE.Object3D {
         const angle = -Math.PI / 2 + progress * Math.PI;
 
         // Y축 기준으로 회전 (좌우 움직임)
-        this.rotateRightArm(0, angle, 0);
+        this.rotateRightArm(Math.PI / 2, 0, -angle / 2);
 
         // 애니메이션이 완료되었을 때 처리
         if (progress >= 1) {
