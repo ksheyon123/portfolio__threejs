@@ -3,12 +3,14 @@ import * as THREE from "three";
 import { HumanMesh } from "./models/HumanMesh";
 import { SphereMesh } from "./models/SphereMesh";
 import { CameraModel } from "./models/CameraModel";
+import { BoxMesh } from "./models/BoxMesh";
 
 const App: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const humanRef = useRef<HumanMesh | null>(null);
   const sphereRef = useRef<SphereMesh | null>(null);
   const cameraModelRef = useRef<CameraModel | null>(null);
+  const boxRef = useRef<BoxMesh | null>(null);
 
   // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
   const sceneRef = useRef<{
@@ -48,10 +50,22 @@ const App: React.FC = () => {
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
 
+    // 구와 박스를 담을 컨테이너 생성
+    const sphereContainer = new THREE.Object3D();
+    scene.add(sphereContainer);
+
     // 반지름이 50인 구 생성
     const sphere = new SphereMesh(50, 0xcccccc);
     sphereRef.current = sphere;
-    scene.add(sphere);
+    sphereContainer.add(sphere);
+
+    // 박스 메시 생성 (크기 20x20x20, 색상 주황색)
+    const box = new BoxMesh(20, 20, 20, 0xff5533);
+    boxRef.current = box;
+
+    // 박스를 구 표면의 임의의 위치에 배치
+    box.placeOnSphere(sphere, sphere.getRadius());
+    sphereContainer.add(box);
 
     // 사람 메시 생성
     const human = new HumanMesh(0x3366ff);
@@ -172,6 +186,9 @@ const App: React.FC = () => {
       if (cameraModelRef.current) {
         cameraModelRef.current.dispose();
       }
+      if (boxRef.current) {
+        boxRef.current.dispose();
+      }
       renderer.dispose();
 
       // 참조 정리
@@ -179,6 +196,7 @@ const App: React.FC = () => {
       humanRef.current = null;
       sphereRef.current = null;
       cameraModelRef.current = null;
+      boxRef.current = null;
     };
   }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
