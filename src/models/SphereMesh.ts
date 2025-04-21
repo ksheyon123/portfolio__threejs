@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { HumanMesh } from "./HumanMesh";
 
 /**
  * 구 형태의 mesh를 생성하는 클래스
@@ -12,11 +13,20 @@ export class SphereMesh extends THREE.Object3D {
   // 구의 반지름
   private radius: number;
 
-  // 회전 속도 (라디안/프레임)
+  // 기본 회전 속도 (라디안/프레임)
   private rotationSpeed: number = 0.02;
+
+  // 달리기 시 회전 속도 (기본 속도의 120%)
+  private runningRotationSpeed: number = 0.024;
 
   // 충돌 상태
   private isColliding: boolean = false;
+
+  // 회전 중인지 여부
+  private isRotating: boolean = false;
+
+  // 연결된 HumanMesh 인스턴스
+  private humanMesh: HumanMesh | null = null;
 
   // 키 입력 상태
   private keyState: {
@@ -24,16 +34,19 @@ export class SphereMesh extends THREE.Object3D {
     ArrowDown: boolean;
     ArrowLeft: boolean;
     ArrowRight: boolean;
+    Shift: boolean;
   } = {
     ArrowUp: false,
     ArrowDown: false,
     ArrowLeft: false,
     ArrowRight: false,
+    Shift: false,
   };
 
   constructor(
     radius: number = 50,
-    color: THREE.ColorRepresentation = 0xcccccc
+    color: THREE.ColorRepresentation = 0xcccccc,
+    humanMesh: HumanMesh | null = null
   ) {
     super();
 
@@ -52,6 +65,19 @@ export class SphereMesh extends THREE.Object3D {
 
     // 키보드 이벤트 리스너 등록
     this.setupKeyboardEvents();
+
+    // HumanMesh 설정
+    if (humanMesh) {
+      this.setHumanMesh(humanMesh);
+    }
+  }
+
+  /**
+   * HumanMesh 인스턴스 설정
+   * @param human HumanMesh 인스턴스
+   */
+  setHumanMesh(human: HumanMesh): void {
+    this.humanMesh = human;
   }
 
   // 이벤트 핸들러 참조 저장
@@ -68,7 +94,8 @@ export class SphereMesh extends THREE.Object3D {
         event.key === "ArrowUp" ||
         event.key === "ArrowDown" ||
         event.key === "ArrowLeft" ||
-        event.key === "ArrowRight"
+        event.key === "ArrowRight" ||
+        event.key === "Shift"
       ) {
         this.keyState[event.key] = true;
       }
@@ -80,7 +107,8 @@ export class SphereMesh extends THREE.Object3D {
         event.key === "ArrowUp" ||
         event.key === "ArrowDown" ||
         event.key === "ArrowLeft" ||
-        event.key === "ArrowRight"
+        event.key === "ArrowRight" ||
+        event.key === "Shift"
       ) {
         this.keyState[event.key] = false;
       }
@@ -120,23 +148,62 @@ export class SphereMesh extends THREE.Object3D {
   updateRotation(): void {
     // 충돌 중이면 회전을 막음
     if (this.isColliding) {
+      this.isRotating = false;
       return;
     }
+
+    // 이전 회전 상태 저장
+    const wasRotating = this.isRotating;
+
+    // 현재 회전 중인지 확인
+    this.isRotating =
+      this.keyState.ArrowUp ||
+      this.keyState.ArrowDown ||
+      this.keyState.ArrowLeft ||
+      this.keyState.ArrowRight;
+
+    // 회전 상태가 변경되었고 HumanMesh가 연결되어 있으면 포즈 업데이트
+    if (this.humanMesh) {
+      if (this.isRotating) {
+        // Shift 키가 눌려있으면 달리기 포즈, 아니면 걷기 포즈
+        if (this.keyState.Shift) {
+          this.humanMesh.setPoseType("running");
+        } else {
+          this.humanMesh.setPoseType("walk");
+        }
+      } else if (!this.isRotating && wasRotating) {
+        // 회전 종료 - 기본 포즈로 변경
+        this.humanMesh.setPoseType("reset");
+      }
+    }
+
+    // 현재 적용할 회전 속도 결정 (Shift 키가 눌려있으면 달리기 속도, 아니면 기본 속도)
+    const currentSpeed = this.keyState.Shift
+      ? this.runningRotationSpeed
+      : this.rotationSpeed;
 
     // 키 입력에 따른 구 회전 처리
     // 방향키가 클릭된 방향의 역방향으로 회전
     if (this.keyState.ArrowUp) {
-      this.rotateByX(this.rotationSpeed); // 위쪽 키 -> 구를 X축 양의 방향으로 회전
+      this.rotateByX(currentSpeed); // 위쪽 키 -> 구를 X축 양의 방향으로 회전
     }
     if (this.keyState.ArrowDown) {
-      this.rotateByX(-this.rotationSpeed); // 아래쪽 키 -> 구를 X축 음의 방향으로 회전
+      this.rotateByX(-currentSpeed); // 아래쪽 키 -> 구를 X축 음의 방향으로 회전
     }
     if (this.keyState.ArrowLeft) {
-      this.rotateByY(this.rotationSpeed); // 왼쪽 키 -> 구를 Y축 양의 방향으로 회전
+      this.rotateByY(currentSpeed); // 왼쪽 키 -> 구를 Y축 양의 방향으로 회전
     }
     if (this.keyState.ArrowRight) {
-      this.rotateByY(-this.rotationSpeed); // 오른쪽 키 -> 구를 Y축 음의 방향으로 회전
+      this.rotateByY(-currentSpeed); // 오른쪽 키 -> 구를 Y축 음의 방향으로 회전
     }
+  }
+
+  /**
+   * 현재 구가 회전 중인지 여부 반환
+   * @returns 회전 중이면 true, 아니면 false
+   */
+  isCurrentlyRotating(): boolean {
+    return this.isRotating;
   }
 
   /**

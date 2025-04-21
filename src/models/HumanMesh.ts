@@ -5,6 +5,9 @@ import * as THREE from "three";
  * 머리, 몸통, 양팔, 두 다리로 구성되며 각 부분을 개별적으로 움직일 수 있음
  */
 export class HumanMesh extends THREE.Object3D {
+  // 포즈 타입
+  private poseType: string = "reset";
+
   // 각 신체 부위 메시
   private head: THREE.Mesh;
   private body: THREE.Mesh;
@@ -175,6 +178,59 @@ export class HumanMesh extends THREE.Object3D {
    */
   resetHeadRotation(): void {
     this.head.rotation.set(0, 0, 0);
+  }
+
+  /**
+   * 현재 포즈 타입 설정
+   * @param type 포즈 타입 ("walk", "raiseArms", "running", "wave", "reset" 중 하나)
+   */
+  setPoseType(type: string): void {
+    this.poseType = type;
+  }
+
+  /**
+   * 현재 포즈 타입 반환
+   * @returns 현재 포즈 타입
+   */
+  getPoseType(): string {
+    return this.poseType;
+  }
+
+  /**
+   * 현재 포즈 타입에 따라 애니메이션 업데이트
+   * @param time 시간 값 (애니메이션 진행 정도)
+   */
+  updatePose(time: number): void {
+    switch (this.poseType) {
+      case "walk":
+        // 걷는 애니메이션
+        this.walk(time * 3);
+        break;
+      case "raiseArms":
+        // 양팔 들기 포즈
+        this.resetRotations();
+        this.rotateLeftArm(-Math.PI / 2, 0, 0);
+        this.rotateRightArm(-Math.PI / 2, 0, 0);
+        break;
+      case "running":
+        // 달리기 포즈
+        this.resetRotations();
+        this.rotateLeftArm(-Math.PI / 4, 0, 0);
+        this.rotateRightArm(Math.PI / 4, 0, 0);
+        this.rotateLeftLeg(Math.PI / 4, 0, 0);
+        this.rotateRightLeg(-Math.PI / 4, 0, 0);
+        break;
+      case "wave":
+        // 손 흔들기 포즈
+        this.resetRotations();
+        this.rotateRightArm(-Math.PI / 2, 0, 0);
+        // 오른팔 흔들기 애니메이션
+        this.rotateRightArm(-Math.PI / 2, 0, Math.sin(time * 5) * 0.5);
+        break;
+      default:
+        // 기본 상태
+        this.resetRotations();
+    }
   }
 
   /**

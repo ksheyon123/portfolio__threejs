@@ -58,8 +58,15 @@ const App: React.FC = () => {
     const sphereContainer = new THREE.Object3D();
     scene.add(sphereContainer);
 
-    // 반지름이 50인 구 생성
-    const sphere = new SphereMesh(50, 0xcccccc);
+    // 사람 메시 생성
+    const human = new HumanMesh(0x3366ff);
+    humanRef.current = human;
+
+    // 사람 메시의 크기 조정 (구에 비례하게)
+    human.scale.set(5, 5, 5);
+
+    // 반지름이 50인 구 생성 (HumanMesh 연결)
+    const sphere = new SphereMesh(50, 0xcccccc, human);
     sphereRef.current = sphere;
     sphereContainer.add(sphere);
 
@@ -85,13 +92,6 @@ const App: React.FC = () => {
     // PlaneMesh를 구 표면에 배치
     plane.placeOnSphere(sphere, sphere.getRadius());
     sphereContainer.add(plane);
-
-    // 사람 메시 생성
-    const human = new HumanMesh(0x3366ff);
-    humanRef.current = human;
-
-    // 사람 메시의 크기 조정 (구에 비례하게)
-    human.scale.set(5, 5, 5);
 
     // 사람 메시의 기준점을 발 하단으로 조정하기 위한 컨테이너 생성
     const humanContainer = new THREE.Object3D();
@@ -181,8 +181,8 @@ const App: React.FC = () => {
       // HumanMesh는 고정된 위치(0, 50, 0)에 유지
       // sphereContainer가 회전하면서 BoxMesh도 함께 회전
 
-      // 걷는 애니메이션 적용
-      human.walk(time * 3);
+      // 포즈 업데이트
+      human.updatePose(time);
 
       // 카메라 업데이트
       cameraModel.update();
@@ -259,6 +259,10 @@ const App: React.FC = () => {
           <div className="text-center text-gray-700 mt-4">
             <p>방향키를 사용하여 구를 회전시켜보세요.</p>
             <p>위/아래 키: X축 회전, 왼쪽/오른쪽 키: Y축 회전</p>
+            <p>
+              Shift 키를 누른 상태로 방향키를 누르면 캐릭터가 달리기 모션으로
+              변경되고 구의 회전 속도가 20% 빨라집니다.
+            </p>
             <p>Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요.</p>
           </div>
         </div>

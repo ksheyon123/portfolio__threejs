@@ -10,7 +10,7 @@ const SphereWithHumanExample: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const humanRef = useRef<HumanMesh | null>(null);
   const sphereRef = useRef<SphereMesh | null>(null);
-  const [poseType, setPoseType] = useState<string>("walk");
+  const [poseType, setPoseType] = useState<string>("reset");
 
   // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
   const sceneRef = useRef<{
@@ -52,14 +52,14 @@ const SphereWithHumanExample: React.FC = () => {
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
 
-    // 반지름이 50인 구 생성
-    const sphere = new SphereMesh(50, 0xcccccc);
-    sphereRef.current = sphere;
-    scene.add(sphere);
-
     // 사람 메시 생성
     const human = new HumanMesh(0x3366ff);
     humanRef.current = human;
+
+    // 반지름이 50인 구 생성 (HumanMesh 연결)
+    const sphere = new SphereMesh(50, 0xcccccc, human);
+    sphereRef.current = sphere;
+    scene.add(sphere);
 
     // 사람 메시의 크기 조정 (구에 비례하게)
     human.scale.set(5, 5, 5);
@@ -167,37 +167,8 @@ const SphereWithHumanExample: React.FC = () => {
       // human.lookAt(sphere.position);
       // human.rotateX(Math.PI / 2); // 추가 회전으로 올바른 방향 조정
 
-      // 현재 선택된 포즈에 따라 다른 애니메이션 적용
-      switch (poseType) {
-        case "walk":
-          // 걷는 애니메이션
-          human.walk(time * 3);
-          break;
-        case "raiseArms":
-          // 양팔 들기 포즈
-          human.resetRotations();
-          human.rotateLeftArm(-Math.PI / 2, 0, 0);
-          human.rotateRightArm(-Math.PI / 2, 0, 0);
-          break;
-        case "running":
-          // 달리기 포즈
-          human.resetRotations();
-          human.rotateLeftArm(-Math.PI / 4, 0, 0);
-          human.rotateRightArm(Math.PI / 4, 0, 0);
-          human.rotateLeftLeg(Math.PI / 4, 0, 0);
-          human.rotateRightLeg(-Math.PI / 4, 0, 0);
-          break;
-        case "wave":
-          // 손 흔들기 포즈
-          human.resetRotations();
-          human.rotateRightArm(-Math.PI / 2, 0, 0);
-          // 오른팔 흔들기 애니메이션
-          human.rotateRightArm(-Math.PI / 2, 0, Math.sin(time * 5) * 0.5);
-          break;
-        default:
-          // 기본 상태
-          human.resetRotations();
-      }
+      // HumanMesh의 포즈 업데이트
+      human.updatePose(time);
 
       renderer.render(scene, camera);
     };
@@ -211,11 +182,14 @@ const SphereWithHumanExample: React.FC = () => {
         cancelAnimationFrame(sceneRef.current.animationId);
       }
     };
-  }, [poseType]); // poseType이 변경될 때마다 실행
+  }, []); // 의존성 배열이 비어 있으므로 마운트 시 한 번만 실행
 
   // 포즈 변경 핸들러
   const handlePoseChange = (pose: string) => {
-    setPoseType(pose);
+    if (humanRef.current) {
+      humanRef.current.setPoseType(pose);
+      setPoseType(pose); // UI 상태 업데이트를 위해 필요
+    }
   };
 
   return (
@@ -265,10 +239,11 @@ const SphereWithHumanExample: React.FC = () => {
         </button>
       </div>
 
-      <div className="text-center text-gray-700">
+      <div className="text-center text-gray-700 mb-4">
         <p>방향키를 사용하여 구를 회전시켜보세요.</p>
         <p>위/아래 키: X축 회전, 왼쪽/오른쪽 키: Y축 회전</p>
         <p>위 버튼을 클릭하여 다양한 포즈를 확인하세요.</p>
+        <p>구 회전 시 자동으로 걷기 모션이 활성화됩니다.</p>
       </div>
     </div>
   );
