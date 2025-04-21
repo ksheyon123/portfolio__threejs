@@ -6,6 +6,7 @@ import { CameraModel } from "./models/CameraModel";
 import { BoxMesh } from "./models/BoxMesh";
 import { PlaneMesh } from "./models/PlaneMesh";
 import { InteractionManager } from "./models/InteractionManager";
+import { TreasureChestMesh } from "./models/TreasureChestMesh";
 
 const App: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -15,6 +16,7 @@ const App: React.FC = () => {
   const boxRef = useRef<BoxMesh | null>(null);
   const planeRef = useRef<PlaneMesh | null>(null);
   const interactionManagerRef = useRef<InteractionManager | null>(null);
+  const treasureChestsRef = useRef<TreasureChestMesh[]>([]);
 
   // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
   const sceneRef = useRef<{
@@ -77,6 +79,48 @@ const App: React.FC = () => {
     // 박스를 구 표면의 임의의 위치에 배치
     box.placeOnSphere(sphere, sphere.getRadius());
     sphereContainer.add(box);
+
+    // 보물 상자 메시 생성 (세 개)
+    const treasureChests: TreasureChestMesh[] = [];
+    const treasureChestColors = [0x8b4513, 0xa0522d, 0xcd853f]; // 갈색 계열 색상
+
+    for (let i = 0; i < 3; i++) {
+      const treasureChest = new TreasureChestMesh(
+        10,
+        10,
+        5,
+        treasureChestColors[i]
+      );
+
+      // 구 표면의 임의의 위치에 배치하기 위한 랜덤 방향 벡터 생성
+      const theta = Math.random() * Math.PI * 2; // 0 ~ 2π (수평각)
+      const phi = Math.acos(2 * Math.random() - 1); // 0 ~ π (수직각)
+
+      // 구 좌표계를 직교 좌표계로 변환
+      const x = Math.sin(phi) * Math.cos(theta);
+      const y = Math.sin(phi) * Math.sin(theta);
+      const z = Math.cos(phi);
+
+      const direction = new THREE.Vector3(x, y, z).normalize();
+
+      // 보물 상자의 위치 설정 (구 표면에 접하도록)
+      const position = direction
+        .clone()
+        .multiplyScalar(sphere.getRadius() + 2.5);
+      treasureChest.position.copy(position);
+
+      // 보물 상자가 구 표면을 향하도록 회전 설정
+      treasureChest.lookAt(new THREE.Vector3(0, 0, 0));
+      // Y축으로 90도 회전하여 상자가 바닥면이 구 표면에 접하도록 함
+      treasureChest.rotateX(Math.PI / 2);
+
+      // 보물 상자를 배열과 씬에 추가
+      treasureChests.push(treasureChest);
+      sphereContainer.add(treasureChest);
+    }
+
+    // 참조 저장
+    treasureChestsRef.current = treasureChests;
 
     // 길과 같은 PlaneMesh 생성 (너비 5, 높이 30, 색상 회색)
     const plane = new PlaneMesh(5, 30, 0x335533);
@@ -170,6 +214,13 @@ const App: React.FC = () => {
         interactionManagerRef.current.update(box, human, sphere);
       }
 
+      // 보물 상자와 사람 메시의 상호작용 업데이트
+      if (human && treasureChestsRef.current.length > 0) {
+        treasureChestsRef.current.forEach((treasureChest) => {
+          treasureChest.updateInteraction(human, time);
+        });
+      }
+
       // SphereMesh 클래스의 updateRotation 메서드 호출
       sphere.updateRotation();
 
@@ -221,6 +272,13 @@ const App: React.FC = () => {
       if (planeRef.current) {
         planeRef.current.dispose();
       }
+      // 보물 상자 메시 해제
+      if (treasureChestsRef.current.length > 0) {
+        treasureChestsRef.current.forEach((treasureChest) => {
+          treasureChest.dispose();
+        });
+        treasureChestsRef.current = [];
+      }
       renderer.dispose();
 
       // 참조 정리
@@ -240,11 +298,13 @@ const App: React.FC = () => {
 
       <main className="container mx-auto p-4">
         <div className="card bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl mb-4">구 위의 캐릭터와 길 예제</h2>
+          <h2 className="text-xl mb-4">구 위의 캐릭터와 보물 상자 예제</h2>
           <p className="mb-4 text-gray-700">
-            반지름이 50인 구 위에 캐릭터와 길(PlaneMesh)을 올려두고 카메라로
+            반지름이 50인 구 위에 캐릭터와 보물 상자를 올려두고 카메라로
             캐릭터를 바라보는 예제입니다. 방향키를 사용하여 구를 회전시켜보세요.
-            Alt 키를 눌러 1인칭/3인칭 시점을 전환할 수 있습니다.
+            Alt 키를 눌러 1인칭/3인칭 시점을 전환할 수 있습니다. 스페이스 키를
+            누르면 캐릭터의 오른팔이 움직이고, 오른팔이 보물 상자와 충돌하면
+            상자가 열립니다.
           </p>
 
           <div
@@ -260,6 +320,10 @@ const App: React.FC = () => {
               변경되고 구의 회전 속도가 20% 빨라집니다.
             </p>
             <p>Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요.</p>
+            <p>
+              스페이스 키를 눌러 캐릭터의 오른팔을 움직여 보물 상자와
+              상호작용해보세요.
+            </p>
           </div>
         </div>
       </main>
