@@ -227,11 +227,7 @@ export class HumanMesh extends THREE.Object3D {
         break;
       case "running":
         // 달리기 포즈
-        this.resetRotations();
-        this.rotateLeftArm(-Math.PI / 4, 0, 0);
-        this.rotateRightArm(Math.PI / 4, 0, 0);
-        this.rotateLeftLeg(Math.PI / 4, 0, 0);
-        this.rotateRightLeg(-Math.PI / 4, 0, 0);
+        this.walk(time * 8);
         break;
       case "wave":
         // 손 흔들기 포즈
