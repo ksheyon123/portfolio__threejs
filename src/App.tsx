@@ -145,8 +145,12 @@ const App: React.FC = () => {
       // SphereMesh 클래스의 updateRotation 메서드 호출
       sphere.updateRotation();
 
+      // sphereContainer의 rotation을 sphere의 rotation으로 설정
+      // 이렇게 하면 구가 회전할 때 구 표면에 위치한 BoxMesh도 함께 회전합니다
+      sphereContainer.rotation.copy(sphere.rotation);
+
       // HumanMesh는 고정된 위치(0, 50, 0)에 유지
-      // SphereMesh만 회전
+      // sphereContainer가 회전하면서 BoxMesh도 함께 회전
 
       // 걷는 애니메이션 적용
       human.walk(time * 3);
@@ -229,7 +233,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="text-center p-4 mt-8 bg-gray-100">
-        <p>&copy; 2025 React Three.js 포트폴리오</p>
+        <p>&copy; 2025 React Three.js 튜토리얼</p>
       </footer>
     </div>
   );

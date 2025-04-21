@@ -83,9 +83,6 @@ export class BoxMesh extends THREE.Object3D {
     const spherePosition = new THREE.Vector3();
     sphere.getWorldPosition(spherePosition);
 
-    // 박스의 방향을 구의 중심에서 접점 방향으로 설정
-    this.lookAt(spherePosition);
-
     // 박스가 구 표면에 접하도록 위치 설정
     // 박스의 절반 높이를 고려하여 구 표면에서 약간 떨어진 위치에 배치
     const halfHeight = this.depth / 2;
@@ -95,10 +92,29 @@ export class BoxMesh extends THREE.Object3D {
 
     this.position.copy(position);
 
-    // 박스가 구 표면에 수직이 되도록 회전 조정
-    // 박스의 z축이 구의 중심을 향하도록 설정
-    this.lookAt(spherePosition);
-    this.rotateX(Math.PI / 2); // 추가 회전으로 올바른 방향 조정
+    // Quaternion을 사용하여 박스가 구 표면에 접하도록 회전 설정
+    // 1. 기준 방향 벡터 (기본적으로 박스의 z축 방향)
+    const defaultDirection = new THREE.Vector3(0, 0, 1);
+
+    // 2. 구의 중심에서 박스를 향하는 방향 벡터 (접점에서 구 중심을 향하는 벡터의 반대)
+    const fromSphereToBox = this.contactDirection.clone().negate();
+
+    // 3. 두 벡터 사이의 회전을 나타내는 Quaternion 계산
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(defaultDirection, fromSphereToBox);
+
+    // 4. 추가 회전 (박스의 면이 구 표면에 접하도록)
+    const additionalRotation = new THREE.Quaternion();
+    additionalRotation.setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0),
+      Math.PI / 2
+    );
+
+    // 5. 두 회전을 결합 (먼저 기본 방향에서 접점 방향으로, 그 다음 추가 회전)
+    quaternion.multiply(additionalRotation);
+
+    // 6. 계산된 Quaternion을 박스에 적용
+    this.quaternion.copy(quaternion);
   }
 
   /**
