@@ -15,6 +15,9 @@ export class SphereMesh extends THREE.Object3D {
   // 회전 속도 (라디안/프레임)
   private rotationSpeed: number = 0.02;
 
+  // 충돌 상태
+  private isColliding: boolean = false;
+
   // 키 입력 상태
   private keyState: {
     ArrowUp: boolean;
@@ -106,7 +109,20 @@ export class SphereMesh extends THREE.Object3D {
    * 키 입력에 따른 구 회전 업데이트
    * 애니메이션 루프에서 호출되어야 함
    */
+  /**
+   * 충돌 상태 설정
+   * @param state 충돌 상태 (true: 충돌 중, false: 충돌 없음)
+   */
+  setCollisionState(state: boolean): void {
+    this.isColliding = state;
+  }
+
   updateRotation(): void {
+    // 충돌 중이면 회전을 막음
+    if (this.isColliding) {
+      return;
+    }
+
     // 키 입력에 따른 구 회전 처리
     // 방향키가 클릭된 방향의 역방향으로 회전
     if (this.keyState.ArrowUp) {

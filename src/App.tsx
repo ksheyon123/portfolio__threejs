@@ -4,6 +4,7 @@ import { HumanMesh } from "./models/HumanMesh";
 import { SphereMesh } from "./models/SphereMesh";
 import { CameraModel } from "./models/CameraModel";
 import { BoxMesh } from "./models/BoxMesh";
+import { InteractionManager } from "./models/InteractionManager";
 
 const App: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -11,6 +12,7 @@ const App: React.FC = () => {
   const sphereRef = useRef<SphereMesh | null>(null);
   const cameraModelRef = useRef<CameraModel | null>(null);
   const boxRef = useRef<BoxMesh | null>(null);
+  const interactionManagerRef = useRef<InteractionManager | null>(null);
 
   // 씬, 카메라, 렌더러 등의 참조를 저장할 ref
   const sceneRef = useRef<{
@@ -60,7 +62,7 @@ const App: React.FC = () => {
     sphereContainer.add(sphere);
 
     // 박스 메시 생성 (크기 20x20x20, 색상 주황색)
-    const box = new BoxMesh(20, 20, 20, 0xff5533);
+    const box = new BoxMesh(10, 10, 10, 0xff5533);
     boxRef.current = box;
 
     // 박스를 구 표면의 임의의 위치에 배치
@@ -90,6 +92,10 @@ const App: React.FC = () => {
     // 카메라 모델 생성 및 설정
     const cameraModel = new CameraModel(camera, mountRef.current);
     cameraModelRef.current = cameraModel;
+
+    // 상호작용 관리자 생성
+    const interactionManager = new InteractionManager();
+    interactionManagerRef.current = interactionManager;
 
     // 카메라가 HumanMesh를 바라보도록 설정
     cameraModel.setTarget(human);
@@ -139,8 +145,14 @@ const App: React.FC = () => {
 
       const sphere = sphereRef.current;
       const cameraModel = cameraModelRef.current;
+      const box = boxRef.current;
 
       const time = clock.getElapsedTime();
+
+      // 상호작용 업데이트
+      if (box && human && sphere && interactionManagerRef.current) {
+        interactionManagerRef.current.update(box, human, sphere);
+      }
 
       // SphereMesh 클래스의 updateRotation 메서드 호출
       sphere.updateRotation();
