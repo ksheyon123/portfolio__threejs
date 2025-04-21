@@ -8,6 +8,12 @@ export class HumanMesh extends THREE.Object3D {
   // 포즈 타입
   private poseType: string = "reset";
 
+  // rightArmSwing 애니메이션을 위한 변수
+  private rightArmSwingStartTime: number = 0;
+
+  // 스페이스 키가 눌려있는지 여부
+  private isSpaceKeyPressed: boolean = false;
+
   // 각 신체 부위 메시
   private head: THREE.Mesh;
   private body: THREE.Mesh;
@@ -22,11 +28,18 @@ export class HumanMesh extends THREE.Object3D {
   private leftLegPivot: THREE.Object3D;
   private rightLegPivot: THREE.Object3D;
 
+  // 이벤트 핸들러 참조 저장
+  private handleKeyDown: ((event: KeyboardEvent) => void) | null = null;
+  private handleKeyUp: ((event: KeyboardEvent) => void) | null = null;
+
   constructor(color: THREE.ColorRepresentation = 0x44aa88) {
     super();
 
     // 재질 생성
     const material = new THREE.MeshPhongMaterial({ color });
+
+    // 키보드 이벤트 리스너 등록
+    this.setupKeyboardEvents();
 
     // 머리 생성 (네모 모양)
     const headGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
@@ -182,7 +195,7 @@ export class HumanMesh extends THREE.Object3D {
 
   /**
    * 현재 포즈 타입 설정
-   * @param type 포즈 타입 ("walk", "raiseArms", "running", "wave", "reset" 중 하나)
+   * @param type 포즈 타입 ("walk", "raiseArms", "running", "wave", "rightArmSwing", "reset" 중 하나)
    */
   setPoseType(type: string): void {
     this.poseType = type;
@@ -227,9 +240,97 @@ export class HumanMesh extends THREE.Object3D {
         // 오른팔 흔들기 애니메이션
         this.rotateRightArm(-Math.PI / 2, 0, Math.sin(time * 5) * 0.5);
         break;
+      case "rightArmSwing":
+        // 오른팔 좌에서 우로 움직이는 애니메이션
+        this.resetRotations();
+
+        // 애니메이션 시작 시간 저장
+        if (this.rightArmSwingStartTime === 0) {
+          this.rightArmSwingStartTime = time;
+        }
+
+        // 애니메이션 진행 시간 (최대 1초)
+        const elapsedTime = Math.min(time - this.rightArmSwingStartTime, 1);
+
+        // 애니메이션 진행률 (0~1)
+        const progress = elapsedTime;
+
+        // 오른팔을 왼쪽에서 오른쪽으로 움직임
+        // 시작 위치: 왼쪽 (-PI/2 라디안, 즉 -90도)
+        // 끝 위치: 오른쪽 (PI/2 라디안, 즉 90도)
+        const angle = -Math.PI / 2 + progress * Math.PI;
+
+        // Y축 기준으로 회전 (좌우 움직임)
+        this.rotateRightArm(0, angle, 0);
+
+        // 애니메이션이 완료되었을 때 처리
+        if (progress >= 1) {
+          if (this.isSpaceKeyPressed) {
+            // 스페이스 키가 여전히 눌려있으면 애니메이션 다시 시작
+            this.rightArmSwingStartTime = 0;
+          } else {
+            // 스페이스 키가 떼어졌으면 기본 상태로 돌아감
+            this.poseType = "reset";
+            this.rightArmSwingStartTime = 0;
+          }
+        }
+        break;
       default:
         // 기본 상태
         this.resetRotations();
+        this.rightArmSwingStartTime = 0;
+    }
+  }
+
+  /**
+   * 키보드 이벤트 리스너 설정
+   */
+  private setupKeyboardEvents(): void {
+    // 키 다운 이벤트 핸들러
+    this.handleKeyDown = (event: KeyboardEvent) => {
+      // 스페이스 키 처리
+      if (event.key === " " || event.code === "Space") {
+        // 스페이스 키가 눌려있는 상태로 설정
+        this.isSpaceKeyPressed = true;
+
+        // 현재 포즈가 rightArmSwing이 아닐 때만 포즈 변경
+        // (이미 애니메이션 중이면 중복 실행 방지)
+        if (this.poseType !== "rightArmSwing") {
+          this.setPoseType("rightArmSwing");
+          this.rightArmSwingStartTime = 0; // 애니메이션 시작 시간 초기화
+        }
+      }
+    };
+
+    // 키 업 이벤트 핸들러
+    this.handleKeyUp = (event: KeyboardEvent) => {
+      // 스페이스 키 처리
+      if (event.key === " " || event.code === "Space") {
+        // 스페이스 키가 떼어진 상태로 설정
+        this.isSpaceKeyPressed = false;
+
+        // 애니메이션 중단하고 기본 상태로 돌아감
+        this.setPoseType("reset");
+        this.rightArmSwingStartTime = 0;
+      }
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("keyup", this.handleKeyUp);
+  }
+
+  /**
+   * 키보드 이벤트 리스너 제거
+   */
+  private removeKeyboardEvents(): void {
+    if (this.handleKeyDown) {
+      window.removeEventListener("keydown", this.handleKeyDown);
+      this.handleKeyDown = null;
+    }
+    if (this.handleKeyUp) {
+      window.removeEventListener("keyup", this.handleKeyUp);
+      this.handleKeyUp = null;
     }
   }
 
@@ -237,6 +338,9 @@ export class HumanMesh extends THREE.Object3D {
    * 메모리 해제
    */
   dispose(): void {
+    // 키보드 이벤트 리스너 제거
+    this.removeKeyboardEvents();
+
     // 모든 지오메트리와 재질 해제
     (this.head.geometry as THREE.BufferGeometry).dispose();
     (this.body.geometry as THREE.BufferGeometry).dispose();
