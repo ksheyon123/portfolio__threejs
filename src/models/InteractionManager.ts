@@ -143,6 +143,7 @@ export class InteractionManager {
 
     // 이동 방향이 제공된 경우 충돌 예측 수행
     if (moveDirection && moveDirection.length() > 0) {
+      console.log(" : moveDirection ", moveDirection);
       const prediction = this.predictMovementCollision(
         human,
         moveDirection,

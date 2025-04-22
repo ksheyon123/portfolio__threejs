@@ -231,6 +231,9 @@ const App: React.FC = () => {
 
       const time = clock.getElapsedTime();
 
+      // 이동 방향 계산 - 추가된 메서드 사용
+      const moveDirection = sphere.calculateMoveDirection();
+
       // 상호작용 업데이트
       if (
         boxes.length > 0 &&
@@ -242,7 +245,8 @@ const App: React.FC = () => {
           boxes,
           human,
           sphere,
-          treasureChestsRef.current
+          treasureChestsRef.current,
+          moveDirection
         );
       }
 

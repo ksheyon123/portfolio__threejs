@@ -313,6 +313,27 @@ export class SphereMesh extends THREE.Object3D {
   }
 
   /**
+   * 현재 키 입력 상태에 따른 이동 방향 벡터 계산
+   * @returns 정규화된 이동 방향 벡터
+   */
+  calculateMoveDirection(): THREE.Vector3 {
+    const moveDirection = new THREE.Vector3(0, 0, 0);
+
+    // 키 상태에 따라 이동 방향 설정
+    if (this.keyState.ArrowUp) moveDirection.z -= 1;
+    if (this.keyState.ArrowDown) moveDirection.z += 1;
+    if (this.keyState.ArrowLeft) moveDirection.x -= 1;
+    if (this.keyState.ArrowRight) moveDirection.x += 1;
+
+    // 방향 벡터가 있을 경우 정규화
+    if (moveDirection.length() > 0) {
+      moveDirection.normalize();
+    }
+
+    return moveDirection;
+  }
+
+  /**
    * 이벤트 리스너 제거 및 메모리 해제
    */
   dispose(): void {
