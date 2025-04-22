@@ -191,10 +191,10 @@ export class SphereMesh extends THREE.Object3D {
       this.rotateByX(-currentSpeed); // 아래쪽 키 -> 구를 X축 음의 방향으로 회전
     }
     if (this.keyState.ArrowLeft) {
-      this.rotateByY(currentSpeed); // 왼쪽 키 -> 구를 Y축 양의 방향으로 회전
+      this.rotateByY(-currentSpeed); // 왼쪽 키 -> 구를 Y축 양의 방향으로 회전
     }
     if (this.keyState.ArrowRight) {
-      this.rotateByY(-currentSpeed); // 오른쪽 키 -> 구를 Y축 음의 방향으로 회전
+      this.rotateByY(currentSpeed); // 오른쪽 키 -> 구를 Y축 음의 방향으로 회전
     }
   }
 
