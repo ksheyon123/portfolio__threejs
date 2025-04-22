@@ -23,7 +23,7 @@ export class TreasureChestMesh extends THREE.Object3D {
 
   // 애니메이션 관련 변수
   private animationStartTime: number = 0;
-  private animationDuration: number = 1; // 1초 동안 애니메이션 진행
+  private animationDuration: number = 0.3; // 0.3초 동안 애니메이션 진행 (더 빠르게)
 
   /**
    * TreasureChestMesh 생성자
@@ -148,51 +148,38 @@ export class TreasureChestMesh extends THREE.Object3D {
    * @returns 충돌 여부
    */
   checkRightArmCollision(human: HumanMesh): boolean {
-    // HumanMesh 내부 구조 탐색
-    // rightArmPivot을 찾고, 그 자식인 rightArm을 가져옴
-    const rightArmPivot = human.getObjectByName("rightArmPivot");
+    // HumanMesh 클래스에서 rightArmPivot은 Object3D이고, 그 자식으로 rightArm이 있음
+    // 직접 내부 구조에 접근하여 오른팔 메시 가져오기
+    let rightArm: THREE.Object3D | null = null;
 
-    if (!rightArmPivot || rightArmPivot.children.length === 0) {
-      // rightArmPivot이 없거나 자식이 없는 경우
-      // HumanMesh 내부 구조를 직접 탐색
-      let rightArm: THREE.Object3D | null = null;
+    // 모든 자식 객체 탐색
+    human.traverse((child) => {
+      // rightArmPivot 찾기
+      if (
+        child.name === "rightArmPivot" ||
+        (child instanceof THREE.Object3D &&
+          child.position.x > 0 && // 오른쪽에 위치
+          Math.abs(child.position.y - 0.6) < 0.1)
+      ) {
+        // y 위치가 약 0.6
 
-      // 모든 자식 객체 탐색
-      human.traverse((child) => {
-        // 오른팔로 추정되는 메시 찾기 (위치 기반)
-        if (
-          child instanceof THREE.Mesh &&
-          child.position.x >= 0 && // 오른쪽에 위치
-          Math.abs(child.position.y) < 1 && // 몸통 근처 높이
-          child.geometry instanceof THREE.BoxGeometry && // 박스 형태
-          child.geometry.parameters.width < 0.2 && // 팔 정도의 크기
-          child.geometry.parameters.height < 0.5
-        ) {
-          rightArm = child;
+        // rightArmPivot의 자식들 중 rightArm 찾기
+        if (child.children.length > 0) {
+          // 첫 번째 자식이 rightArm
+          rightArm = child.children[0];
         }
-      });
-
-      if (!rightArm) {
-        return false;
       }
+    });
 
-      // 오른팔의 바운딩 박스 계산
-      const rightArmBounds = new THREE.Box3().setFromObject(rightArm);
-
-      // 상자(전체)의 바운딩 박스 계산
-      const chestBounds = new THREE.Box3().setFromObject(this);
-
-      // 충돌 감지
-      return rightArmBounds.intersectsBox(chestBounds);
+    if (!rightArm) {
+      return false;
     }
 
-    // rightArmPivot의 첫 번째 자식이 rightArm
-    const rightArm = rightArmPivot.children[0];
-
     // 오른팔의 바운딩 박스 계산
+    // rightArm은 이미 THREE.Object3D 타입으로 확인됨
     const rightArmBounds = new THREE.Box3().setFromObject(rightArm);
 
-    // 상자(전체)의 바운딩 박스 계산
+    // 상자의 바운딩 박스 계산
     const chestBounds = new THREE.Box3().setFromObject(this);
 
     // 충돌 감지
