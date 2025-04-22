@@ -195,12 +195,10 @@ export class TreasureChestMesh extends THREE.Object3D {
     // 오른팔과의 충돌 감지
     const collision = this.checkRightArmCollision(human);
 
-    // 충돌 시 상자 열기, 충돌 해제 시 상자 닫기
+    // 충돌 시 상자 열기 (한 번 열리면 계속 열린 상태 유지)
     if (collision && !this.isOpen) {
       this.startOpenAnimation(time);
-    } else if (!collision && this.isOpen && this.animationStartTime === 0) {
-      // 애니메이션 중이 아닐 때만 닫기 애니메이션 시작
-      this.startCloseAnimation(time);
+      console.log("보물 상자가 열렸습니다!");
     }
 
     // 애니메이션 업데이트

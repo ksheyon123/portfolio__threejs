@@ -13,7 +13,7 @@ const App: React.FC = () => {
   const humanRef = useRef<HumanMesh | null>(null);
   const sphereRef = useRef<SphereMesh | null>(null);
   const cameraModelRef = useRef<CameraModel | null>(null);
-  const boxRef = useRef<BoxMesh | null>(null);
+  const boxesRef = useRef<BoxMesh[]>([]);
   const planeRef = useRef<PlaneMesh | null>(null);
   const interactionManagerRef = useRef<InteractionManager | null>(null);
   const treasureChestsRef = useRef<TreasureChestMesh[]>([]);
@@ -72,13 +72,35 @@ const App: React.FC = () => {
     sphereRef.current = sphere;
     sphereContainer.add(sphere);
 
-    // 박스 메시 생성 (크기 10x10x10, 색상 주황색)
-    const box = new BoxMesh(10, 10, 10, 0xff5533);
-    boxRef.current = box;
+    // 여러 개의 박스 메시 생성
+    const boxes: BoxMesh[] = [];
+    const boxColors = [0xff5533, 0x33ff55, 0x5533ff]; // 다양한 색상
 
-    // 박스를 구 표면의 임의의 위치에 배치
-    box.placeOnSphere(sphere, sphere.getRadius());
-    sphereContainer.add(box);
+    for (let i = 0; i < 3; i++) {
+      const box = new BoxMesh(10, 10, 10, boxColors[i]);
+
+      // 구 표면의 임의의 위치에 배치하기 위한 랜덤 방향 벡터 생성
+      const theta = Math.random() * Math.PI * 2; // 0 ~ 2π (수평각)
+      const phi = Math.acos(2 * Math.random() - 1); // 0 ~ π (수직각)
+
+      // 구 좌표계를 직교 좌표계로 변환
+      const x = Math.sin(phi) * Math.cos(theta);
+      const y = Math.sin(phi) * Math.sin(theta);
+      const z = Math.cos(phi);
+
+      const direction = new THREE.Vector3(x, y, z).normalize();
+
+      // 박스를 구 표면에 배치
+      box.setContactDirection(direction);
+      box.placeOnSphere(sphere, sphere.getRadius());
+
+      // 박스를 배열과 씬에 추가
+      boxes.push(box);
+      sphereContainer.add(box);
+    }
+
+    // 참조 저장
+    boxesRef.current = boxes;
 
     // 보물 상자 메시 생성 (세 개)
     const treasureChests: TreasureChestMesh[] = [];
@@ -205,13 +227,23 @@ const App: React.FC = () => {
 
       const sphere = sphereRef.current;
       const cameraModel = cameraModelRef.current;
-      const box = boxRef.current;
+      const boxes = boxesRef.current;
 
       const time = clock.getElapsedTime();
 
       // 상호작용 업데이트
-      if (box && human && sphere && interactionManagerRef.current) {
-        interactionManagerRef.current.update(box, human, sphere);
+      if (
+        boxes.length > 0 &&
+        human &&
+        sphere &&
+        interactionManagerRef.current
+      ) {
+        interactionManagerRef.current.update(
+          boxes,
+          human,
+          sphere,
+          treasureChestsRef.current
+        );
       }
 
       // 보물 상자와 사람 메시의 상호작용 업데이트
@@ -266,8 +298,12 @@ const App: React.FC = () => {
       if (cameraModelRef.current) {
         cameraModelRef.current.dispose();
       }
-      if (boxRef.current) {
-        boxRef.current.dispose();
+      // 박스 메시 해제
+      if (boxesRef.current.length > 0) {
+        boxesRef.current.forEach((box) => {
+          box.dispose();
+        });
+        boxesRef.current = [];
       }
       if (planeRef.current) {
         planeRef.current.dispose();
@@ -286,7 +322,6 @@ const App: React.FC = () => {
       humanRef.current = null;
       sphereRef.current = null;
       cameraModelRef.current = null;
-      boxRef.current = null;
     };
   }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
