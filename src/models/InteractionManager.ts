@@ -31,23 +31,98 @@ export class InteractionManager {
   private isColliding = false;
 
   /**
-   * 거리 계산 및 상호작용 처리
-   * @param box BoxMesh 객체
-   * @param human HumanMesh 객체
-   * @param sphere SphereMesh 객체
+   * 레이캐스팅을 사용한 충돌 예측
+   * @param origin 레이캐스트 시작 위치
+   * @param direction 레이캐스트 방향 (정규화된 벡터)
+   * @param objects 충돌 검사할 객체 배열
+   * @param minDistance 충돌로 간주할 최소 거리 (기본값: 0.05)
+   * @returns 예측 결과 객체 {willCollide: boolean, distance: number}
    */
+  predictCollision(
+    origin: THREE.Vector3,
+    direction: THREE.Vector3,
+    objects: THREE.Object3D[],
+    minDistance: number = 0.05
+  ): {
+    willCollide: boolean;
+    distance: number;
+    collisionPoint?: THREE.Vector3;
+  } {
+    // 레이캐스터 생성
+    const raycaster = new THREE.Raycaster(
+      origin,
+      direction.normalize(),
+      0, // 시작 거리
+      5 // 최대 검사 거리 (필요에 따라 조정)
+    );
+
+    // 레이캐스팅 수행
+    const intersects = raycaster.intersectObjects(objects, true);
+
+    // 교차점이 있고 거리가 minDistance 이하인 경우 충돌 예측
+    if (intersects.length > 0) {
+      const distance = intersects[0].distance;
+      return {
+        willCollide: distance <= minDistance,
+        distance: distance,
+        collisionPoint: intersects[0].point,
+      };
+    }
+
+    // 교차점이 없는 경우
+    return {
+      willCollide: false,
+      distance: Infinity,
+    };
+  }
+
+  /**
+   * 이동 방향에 따른 충돌 예측
+   * @param human HumanMesh 객체
+   * @param moveDirection 이동 방향 벡터
+   * @param boxes BoxMesh 객체 배열
+   * @param treasureChests TreasureChestMesh 객체 배열 (선택적)
+   * @returns 예측 결과 객체 {willCollide: boolean, distance: number}
+   */
+  predictMovementCollision(
+    human: HumanMesh,
+    moveDirection: THREE.Vector3,
+    boxes: BoxMesh[],
+    treasureChests?: TreasureChestMesh[]
+  ): { willCollide: boolean; distance: number } {
+    // 이동 방향이 없으면 충돌 없음
+    if (moveDirection.length() === 0) {
+      return { willCollide: false, distance: Infinity };
+    }
+
+    // 사람의 현재 위치
+    const humanPosition = new THREE.Vector3();
+    human.getWorldPosition(humanPosition);
+
+    // 충돌 검사할 객체들 수집
+    const objects: THREE.Object3D[] = [...boxes];
+    if (treasureChests && treasureChests.length > 0) {
+      objects.push(...treasureChests);
+    }
+
+    // 성능 최적화: 이동 방향으로만 레이캐스팅 수행
+    return this.predictCollision(humanPosition, moveDirection, objects);
+  }
+
   /**
    * 거리 계산 및 상호작용 처리
    * @param boxes BoxMesh 객체 또는 BoxMesh 객체 배열
    * @param human HumanMesh 객체
    * @param sphere SphereMesh 객체
    * @param treasureChests TreasureChestMesh 객체 배열 (선택적)
+   * @param moveDirection 현재 이동 방향 벡터 (선택적)
    */
   update(
     boxes: BoxMesh | BoxMesh[],
     human: HumanMesh,
     sphere: SphereMesh,
-    treasureChests?: TreasureChestMesh[]
+    treasureChests?: TreasureChestMesh[],
+    moveDirection?: THREE.Vector3
   ): void {
     // 박스 배열 생성 (단일 박스인 경우 배열로 변환)
     const boxArray = Array.isArray(boxes) ? boxes : [boxes];
@@ -65,6 +140,23 @@ export class InteractionManager {
     // 가장 가까운 박스와의 거리 (색상 변경용)
     let closestDistance = Infinity;
     let closestBox: BoxMesh | null = null;
+
+    // 이동 방향이 제공된 경우 충돌 예측 수행
+    if (moveDirection && moveDirection.length() > 0) {
+      const prediction = this.predictMovementCollision(
+        human,
+        moveDirection,
+        boxArray,
+        treasureChests
+      );
+
+      // 거리가 0.05 미만이면 이동 제한 신호 전달
+      if (prediction.distance < 0.05) {
+        sphere.setMovementRestriction(true, moveDirection);
+      } else {
+        sphere.setMovementRestriction(false);
+      }
+    }
 
     // BoxMesh와의 충돌 감지
     for (const box of boxArray) {

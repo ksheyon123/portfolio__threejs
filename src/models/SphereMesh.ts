@@ -25,6 +25,10 @@ export class SphereMesh extends THREE.Object3D {
   // 회전 중인지 여부
   private isRotating: boolean = false;
 
+  // 이동 제한 관련 속성
+  private movementRestricted: boolean = false;
+  private restrictedDirection: THREE.Vector3 | null = null;
+
   // 연결된 HumanMesh 인스턴스
   private humanMesh: HumanMesh | null = null;
 
@@ -145,6 +149,21 @@ export class SphereMesh extends THREE.Object3D {
     this.isColliding = state;
   }
 
+  /**
+   * 이동 제한 설정
+   * @param restricted 이동 제한 여부
+   * @param direction 제한할 이동 방향 (선택적)
+   */
+  setMovementRestriction(restricted: boolean, direction?: THREE.Vector3): void {
+    this.movementRestricted = restricted;
+
+    if (restricted && direction) {
+      this.restrictedDirection = direction.clone().normalize();
+    } else {
+      this.restrictedDirection = null;
+    }
+  }
+
   updateRotation(): void {
     // 충돌 중이면 회전을 막음
     if (this.isColliding) {
@@ -156,6 +175,54 @@ export class SphereMesh extends THREE.Object3D {
     const wasRotating = this.isRotating;
 
     // 현재 회전 중인지 확인
+    this.isRotating =
+      this.keyState.ArrowUp ||
+      this.keyState.ArrowDown ||
+      this.keyState.ArrowLeft ||
+      this.keyState.ArrowRight;
+
+    // 이동 방향 벡터 계산
+    const moveDirection = new THREE.Vector3(0, 0, 0);
+    if (this.keyState.ArrowUp) moveDirection.z -= 1;
+    if (this.keyState.ArrowDown) moveDirection.z += 1;
+    if (this.keyState.ArrowLeft) moveDirection.x -= 1;
+    if (this.keyState.ArrowRight) moveDirection.x += 1;
+
+    // 방향 벡터가 있을 경우 정규화
+    if (moveDirection.length() > 0) {
+      moveDirection.normalize();
+    }
+
+    // 이동 제한 처리
+    if (this.movementRestricted && this.restrictedDirection) {
+      // 제한된 방향과 이동 방향의 내적 계산 (같은 방향이면 양수)
+      const dotProduct = moveDirection.dot(this.restrictedDirection);
+
+      // 제한된 방향으로 이동하려는 경우 해당 키 입력 무시
+      if (dotProduct > 0) {
+        if (this.restrictedDirection.z < 0 && this.keyState.ArrowUp)
+          this.keyState.ArrowUp = false;
+        if (this.restrictedDirection.z > 0 && this.keyState.ArrowDown)
+          this.keyState.ArrowDown = false;
+        if (this.restrictedDirection.x < 0 && this.keyState.ArrowLeft)
+          this.keyState.ArrowLeft = false;
+        if (this.restrictedDirection.x > 0 && this.keyState.ArrowRight)
+          this.keyState.ArrowRight = false;
+
+        // 이동 방향 재계산
+        moveDirection.set(0, 0, 0);
+        if (this.keyState.ArrowUp) moveDirection.z -= 1;
+        if (this.keyState.ArrowDown) moveDirection.z += 1;
+        if (this.keyState.ArrowLeft) moveDirection.x -= 1;
+        if (this.keyState.ArrowRight) moveDirection.x += 1;
+
+        if (moveDirection.length() > 0) {
+          moveDirection.normalize();
+        }
+      }
+    }
+
+    // 현재 회전 중인지 다시 확인 (키 상태가 변경되었을 수 있음)
     this.isRotating =
       this.keyState.ArrowUp ||
       this.keyState.ArrowDown ||
