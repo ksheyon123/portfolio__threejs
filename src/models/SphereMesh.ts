@@ -320,6 +320,7 @@ export class SphereMesh extends THREE.Object3D {
     const moveDirection = new THREE.Vector3(0, 0, 0);
 
     // 키 상태에 따라 이동 방향 설정
+    // updateRotation 메서드와 동일한 방식으로 이동 방향 계산
     if (this.keyState.ArrowUp) moveDirection.z -= 1;
     if (this.keyState.ArrowDown) moveDirection.z += 1;
     if (this.keyState.ArrowLeft) moveDirection.x -= 1;

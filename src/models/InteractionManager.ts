@@ -105,6 +105,9 @@ export class InteractionManager {
       objects.push(...treasureChests);
     }
 
+    // SphereMesh.calculateMoveDirection에서 이미 올바른 방향을 계산하고 있으므로
+    // 이동 방향을 그대로 사용하여 레이캐스팅 수행
+
     // 성능 최적화: 이동 방향으로만 레이캐스팅 수행
     return this.predictCollision(humanPosition, moveDirection, objects);
   }
@@ -143,7 +146,6 @@ export class InteractionManager {
 
     // 이동 방향이 제공된 경우 충돌 예측 수행
     if (moveDirection && moveDirection.length() > 0) {
-      console.log(" : moveDirection ", moveDirection);
       const prediction = this.predictMovementCollision(
         human,
         moveDirection,
@@ -151,8 +153,11 @@ export class InteractionManager {
         treasureChests
       );
 
-      // 거리가 0.05 미만이면 이동 제한 신호 전달
-      if (prediction.distance < 0.05) {
+      // 디버깅용 로그 - 충돌 예측 거리 출력
+      console.log("예측 충돌 거리:", prediction.distance);
+
+      // 거리가 0.1 미만이면 이동 제한 신호 전달
+      if (prediction.distance < 5) {
         sphere.setMovementRestriction(true, moveDirection);
       } else {
         sphere.setMovementRestriction(false);
