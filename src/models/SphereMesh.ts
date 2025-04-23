@@ -282,27 +282,36 @@ export class SphereMesh extends THREE.Object3D {
   }
 
   /**
-   * X축 기준 회전
+   * X축 기준 회전 (월드 좌표계 기준)
    * @param angle 회전 각도 (라디안)
    */
   rotateByX(angle: number): void {
-    this.rotation.x += angle;
+    // 월드 좌표계의 X축 벡터
+    const worldXAxis = new THREE.Vector3(1, 0, 0);
+    // 월드 좌표계 기준으로 회전
+    this.rotateOnWorldAxis(worldXAxis, angle);
   }
 
   /**
-   * Y축 기준 회전
+   * Y축 기준 회전 (월드 좌표계 기준)
    * @param angle 회전 각도 (라디안)
    */
   rotateByY(angle: number): void {
-    this.rotation.y += angle;
+    // 월드 좌표계의 Y축 벡터
+    const worldYAxis = new THREE.Vector3(0, 1, 0);
+    // 월드 좌표계 기준으로 회전
+    this.rotateOnWorldAxis(worldYAxis, angle);
   }
 
   /**
-   * Z축 기준 회전
+   * Z축 기준 회전 (월드 좌표계 기준)
    * @param angle 회전 각도 (라디안)
    */
   rotateByZ(angle: number): void {
-    this.rotation.z += angle;
+    // 월드 좌표계의 Z축 벡터
+    const worldZAxis = new THREE.Vector3(0, 0, 1);
+    // 월드 좌표계 기준으로 회전
+    this.rotateOnWorldAxis(worldZAxis, angle);
   }
 
   /**

@@ -152,7 +152,6 @@ export class InteractionManager {
         boxArray,
         treasureChests
       );
-
       // 디버깅용 로그 - 충돌 예측 거리 출력
       console.log("예측 충돌 거리:", prediction.distance);
 
