@@ -113,13 +113,13 @@ const ToolTipIcon: React.FC<ToolTipIconProps> = ({
       onBlur={() => setIsVisible(false)}
     >
       <IconComponent
-        className={`${sizeClass} ${color} cursor-pointer`}
+        className={`${sizeClass} ${color} cursor-pointer stroke-2`}
         aria-hidden="true"
       />
 
       {isVisible && (
         <div
-          className={`absolute z-10 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-100 tooltip dark:bg-gray-700 ${positionClass} whitespace-nowrap`}
+          className={`absolute z-[9999] px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-lg opacity-100 tooltip dark:bg-gray-700 ${positionClass} whitespace-nowrap`}
           role="tooltip"
         >
           {text}

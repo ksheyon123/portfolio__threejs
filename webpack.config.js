@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/index.tsx",
+  devtool: "source-map", // eval() 대신 source-map 사용
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "bundle.[contenthash].js",

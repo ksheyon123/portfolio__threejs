@@ -7,6 +7,7 @@ import { BoxMesh } from "./models/BoxMesh";
 import { PlaneMesh } from "./models/PlaneMesh";
 import { InteractionManager } from "./models/InteractionManager";
 import { TreasureChestMesh } from "./models/TreasureChestMesh";
+import ToolTipIcon from "./components/ToolTipIcon";
 
 const App: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -31,9 +32,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // 컨테이너 크기 가져오기
-    const width = mountRef.current.clientWidth;
-    const height = mountRef.current.clientHeight;
+    // 화면 크기 직접 가져오기 (clientWidth/Height가 0이 되는 문제 방지)
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
     // 씬, 카메라, 렌더러 설정
     const scene = new THREE.Scene();
@@ -196,10 +197,10 @@ const App: React.FC = () => {
 
     // 창 크기 변경 이벤트 처리
     const handleResize = () => {
-      if (!mountRef.current || !sceneRef.current) return;
+      if (!sceneRef.current) return;
 
-      const newWidth = mountRef.current.clientWidth;
-      const newHeight = mountRef.current.clientHeight;
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
 
       const { camera, renderer } = sceneRef.current;
 
@@ -330,47 +331,45 @@ const App: React.FC = () => {
   }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
   return (
-    <div className="min-h-screen">
-      <header className="p-4 bg-gray-100">
-        <h1 className="text-2xl font-bold">React Three.js 포트폴리오</h1>
-      </header>
-
-      <main className="container mx-auto p-4">
-        <div className="card bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl mb-4">구 위의 캐릭터와 보물 상자 예제</h2>
-          <p className="mb-4 text-gray-700">
-            반지름이 50인 구 위에 캐릭터와 보물 상자를 올려두고 카메라로
-            캐릭터를 바라보는 예제입니다. 방향키를 사용하여 구를 회전시켜보세요.
-            Alt 키를 눌러 1인칭/3인칭 시점을 전환할 수 있습니다. 스페이스 키를
-            누르면 캐릭터의 오른팔이 움직이고, 오른팔이 보물 상자와 충돌하면
-            상자가 열립니다.
-          </p>
-
-          <div
-            ref={mountRef}
-            className="h-96 border border-gray-200 rounded-lg overflow-hidden"
+    <>
+      {/* 고정된 툴팁 아이콘 - 우측 상단에 위치 (z-index 매우 높게 설정) */}
+      <div className="fixed top-4 right-4 z-[9999]">
+        <div
+          className="p-2 flex items-center justify-center"
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.2)",
+            borderRadius: "50%",
+          }}
+        >
+          <ToolTipIcon
+            text={`
+              [조작 방법 안내]
+              
+              • 방향키: 구를 회전시킵니다.
+                - 위/아래 키: X축 회전
+                - 왼쪽/오른쪽 키: Y축 회전
+              
+              • Shift + 방향키: 캐릭터가 달리기 모션으로 변경되고 구의 회전 속도가 20% 빨라집니다.
+              
+              • Alt 키: 1인칭/3인칭 시점을 전환합니다.
+              
+              • 스페이스 키: 캐릭터의 오른팔을 움직여 보물 상자와 상호작용합니다.
+                - 오른팔이 보물 상자와 충돌하면 상자가 열립니다.
+            `}
+            position="left"
+            iconType="question"
+            size="lg"
+            className="text-blue-700"
           />
-
-          <div className="text-center text-gray-700 mt-4">
-            <p>방향키를 사용하여 구를 회전시켜보세요.</p>
-            <p>위/아래 키: X축 회전, 왼쪽/오른쪽 키: Y축 회전</p>
-            <p>
-              Shift 키를 누른 상태로 방향키를 누르면 캐릭터가 달리기 모션으로
-              변경되고 구의 회전 속도가 20% 빨라집니다.
-            </p>
-            <p>Alt 키를 눌러 1인칭/3인칭 시점을 전환해보세요.</p>
-            <p>
-              스페이스 키를 눌러 캐릭터의 오른팔을 움직여 보물 상자와
-              상호작용해보세요.
-            </p>
-          </div>
         </div>
-      </main>
+      </div>
 
-      <footer className="text-center p-4 mt-8 bg-gray-100">
-        <p>&copy; 2025 React Three.js 튜토리얼</p>
-      </footer>
-    </div>
+      {/* Three.js 렌더링 영역 */}
+      <div
+        ref={mountRef}
+        className="w-screen h-screen border-0 overflow-hidden"
+      />
+    </>
   );
 };
 
