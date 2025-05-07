@@ -95,21 +95,65 @@ export class InteractionManager {
       return { willCollide: false, distance: Infinity };
     }
 
-    // 사람의 현재 위치
-    const humanPosition = new THREE.Vector3();
-    human.getWorldPosition(humanPosition);
-
     // 충돌 검사할 객체들 수집
     const objects: THREE.Object3D[] = [...boxes];
     if (treasureChests && treasureChests.length > 0) {
       objects.push(...treasureChests);
     }
 
-    // SphereMesh.calculateMoveDirection에서 이미 올바른 방향을 계산하고 있으므로
-    // 이동 방향을 그대로 사용하여 레이캐스팅 수행
+    // HumanMesh의 바운딩 박스 계산
+    const humanBounds = new THREE.Box3().setFromObject(human);
 
-    // 성능 최적화: 이동 방향으로만 레이캐스팅 수행
-    return this.predictCollision(humanPosition, moveDirection, objects);
+    // 바운딩 박스의 크기와 중심점 계산
+    const humanSize = new THREE.Vector3();
+    humanBounds.getSize(humanSize);
+
+    const humanCenter = new THREE.Vector3();
+    humanBounds.getCenter(humanCenter);
+
+    // 바운딩 박스의 모서리 및 중요 지점들 계산 (총 5개 지점)
+    const checkPoints = [
+      humanCenter.clone(), // 중심점
+      new THREE.Vector3(
+        humanCenter.x + humanSize.x * 0.4,
+        humanCenter.y,
+        humanCenter.z + humanSize.z * 0.4
+      ), // 오른쪽 앞
+      new THREE.Vector3(
+        humanCenter.x - humanSize.x * 0.4,
+        humanCenter.y,
+        humanCenter.z + humanSize.z * 0.4
+      ), // 왼쪽 앞
+      new THREE.Vector3(
+        humanCenter.x,
+        humanCenter.y + humanSize.y * 0.4,
+        humanCenter.z + humanSize.z * 0.4
+      ), // 위쪽 앞
+      new THREE.Vector3(
+        humanCenter.x,
+        humanCenter.y - humanSize.y * 0.4,
+        humanCenter.z + humanSize.z * 0.4
+      ), // 아래쪽 앞
+    ];
+
+    // 각 지점에서 레이캐스팅 수행하여 가장 가까운 충돌 거리 찾기
+    let minDistance = Infinity;
+    let willCollide = false;
+
+    for (const point of checkPoints) {
+      const result = this.predictCollision(point, moveDirection, objects);
+
+      // 충돌이 예상되고 현재까지의 최소 거리보다 작으면 업데이트
+      if (result.distance < minDistance) {
+        minDistance = result.distance;
+        willCollide = result.willCollide || willCollide;
+      }
+    }
+
+    return {
+      willCollide: willCollide,
+      distance: minDistance,
+    };
   }
 
   /**
