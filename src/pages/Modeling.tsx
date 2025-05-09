@@ -89,6 +89,9 @@ const Modeling: React.FC = () => {
     const finger = new FingerMesh();
     finger.createFingerMesh(); // 손가락 메시 생성 메서드 호출
     fingerRef.current = finger;
+    // 두 번째 Bone을 90도 구부림
+    finger.bendSecondBone90Degrees();
+
     scene.add(finger);
 
     // 카메라 모델 생성 및 설정
