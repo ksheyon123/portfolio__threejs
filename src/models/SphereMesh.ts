@@ -32,6 +32,9 @@ export class SphereMesh extends THREE.Object3D {
   // 연결된 HumanMesh 인스턴스
   private humanMesh: HumanMesh | null = null;
 
+  // 카메라 참조
+  private camera: THREE.Camera | null = null;
+
   // 키 입력 상태
   private keyState: {
     ArrowUp: boolean;
@@ -82,6 +85,14 @@ export class SphereMesh extends THREE.Object3D {
    */
   setHumanMesh(human: HumanMesh): void {
     this.humanMesh = human;
+  }
+
+  /**
+   * 카메라 참조 설정
+   * @param camera Three.js 카메라 객체
+   */
+  setCamera(camera: THREE.Camera): void {
+    this.camera = camera;
   }
 
   // 이벤트 핸들러 참조 저장
@@ -257,11 +268,24 @@ export class SphereMesh extends THREE.Object3D {
     if (this.keyState.ArrowDown) {
       this.rotateByX(-currentSpeed); // 아래쪽 키 -> 구를 X축 음의 방향으로 회전
     }
-    if (this.keyState.ArrowLeft) {
-      this.rotateByY(-currentSpeed); // 왼쪽 키 -> 구를 Y축 양의 방향으로 회전
-    }
-    if (this.keyState.ArrowRight) {
-      this.rotateByY(currentSpeed); // 오른쪽 키 -> 구를 Y축 음의 방향으로 회전
+
+    // 카메라 방향을 고려한 회전 적용
+    if (this.camera) {
+      // 왼쪽/오른쪽 키는 카메라 방향을 고려한 수직 축을 기준으로 회전
+      if (this.keyState.ArrowLeft) {
+        this.rotateByPerpendicularAxis(-1, currentSpeed); // 왼쪽 키 -> 카메라 방향에 수직인 축으로 회전
+      }
+      if (this.keyState.ArrowRight) {
+        this.rotateByPerpendicularAxis(1, currentSpeed); // 오른쪽 키 -> 카메라 방향에 수직인 축으로 회전
+      }
+    } else {
+      // 카메라가 없는 경우 기존 방식으로 회전
+      if (this.keyState.ArrowLeft) {
+        this.rotateByZ(-currentSpeed); // 왼쪽 키 -> 구를 Z축 양의 방향으로 회전
+      }
+      if (this.keyState.ArrowRight) {
+        this.rotateByZ(currentSpeed); // 오른쪽 키 -> 구를 Z축 음의 방향으로 회전
+      }
     }
   }
 
@@ -312,6 +336,43 @@ export class SphereMesh extends THREE.Object3D {
     const worldZAxis = new THREE.Vector3(0, 0, 1);
     // 월드 좌표계 기준으로 회전
     this.rotateOnWorldAxis(worldZAxis, angle);
+  }
+
+  /**
+   * 카메라 방향을 고려한 수직 축 기준 회전
+   * @param direction 방향 (1: 오른쪽, -1: 왼쪽)
+   * @param angle 회전 각도 (라디안)
+   */
+  rotateByPerpendicularAxis(direction: number, angle: number): void {
+    if (!this.camera) return;
+
+    // 카메라의 전방 벡터 (카메라가 바라보는 방향)
+    const forward = new THREE.Vector3(0, 0, -1);
+    forward.applyQuaternion(this.camera.quaternion);
+    forward.normalize();
+
+    // 카메라의 오른쪽 벡터 (카메라의 오른쪽 방향)
+    const right = new THREE.Vector3(1, 0, 0);
+    right.applyQuaternion(this.camera.quaternion);
+    right.normalize();
+
+    // 카메라의 위쪽 벡터 (카메라의 위쪽 방향)
+    const up = new THREE.Vector3();
+    up.crossVectors(forward, right);
+    up.normalize();
+
+    // 왼쪽/오른쪽 방향에 수직인 축 계산
+    // 왼쪽/오른쪽 방향은 카메라의 right 벡터와 평행
+    // 따라서 이 방향에 수직인 축은 right 벡터와 up 벡터의 외적
+    const axis = new THREE.Vector3();
+    axis.crossVectors(right, up);
+    axis.normalize();
+
+    // 방향에 따라 회전 방향 결정
+    const finalAngle = direction * angle;
+
+    // 계산된 축을 기준으로 회전
+    this.rotateOnWorldAxis(axis, finalAngle);
   }
 
   /**

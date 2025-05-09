@@ -183,11 +183,20 @@ const App: React.FC = () => {
     // 카메라가 HumanMesh를 바라보도록 설정
     cameraModel.setTarget(human);
 
+    // SphereMesh에 카메라 참조 설정 (카메라 방향을 고려한 회전을 위해)
+    sphere.setCamera(camera);
+
     // 카메라 위치 및 오프셋 설정 (HumanMesh를 잘 볼 수 있는 위치)
     cameraModel.setOffset(0, 10, 30);
     // 1인칭 시점에서 카메라를 머리 위치로 설정 (HumanMesh의 머리는 y = 0.85에 위치)
     // 스케일이 5이므로 오프셋도 5배로 조정 (0.85 * 5 = 4.25)
     cameraModel.setFirstPersonOffset(0, 4.25, 0);
+
+    // 구의 반지름 설정
+    cameraModel.setSphereRadius(sphere.getRadius());
+
+    // 접평면 모드 활성화 (카메라가 구 표면에 접하는 평면과 나란한 평면 위에 위치하도록)
+    cameraModel.setTangentPlaneMode(true);
 
     // 시계 생성
     const clock = new THREE.Clock();
@@ -270,6 +279,20 @@ const App: React.FC = () => {
 
       // 카메라 업데이트
       cameraModel.update();
+
+      // 카메라의 시야 벡터를 계산하고 HumanMesh가 그 방향을 바라보도록 설정
+      if (human && cameraModel) {
+        // 사람 메시의 위치 계산
+        const humanPosition = new THREE.Vector3();
+        human.getWorldPosition(humanPosition);
+
+        // 구 표면에 접하는 평면에 투영된 카메라 시야 벡터 계산
+        const projectedViewVector =
+          cameraModel.getProjectedViewVector(humanPosition);
+
+        // HumanMesh가 시야 벡터 방향을 바라보도록 회전
+        human.lookAtDirection(projectedViewVector);
+      }
 
       renderer.render(scene, camera);
     };
