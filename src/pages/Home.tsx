@@ -362,7 +362,7 @@ const Home: React.FC = () => {
               • 스페이스 키: 캐릭터의 오른팔을 움직여 보물 상자와 상호작용합니다.
                 - 오른팔이 보물 상자와 충돌하면 상자가 열립니다.
             `}
-            position="left"
+            position="left-top"
             iconType="question"
             size="lg"
             className="text-blue-700"
