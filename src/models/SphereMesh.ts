@@ -271,10 +271,10 @@ export class SphereMesh extends THREE.Object3D {
 
     // 카메라 방향과 무관하게 일관된 회전 적용
     if (this.keyState.ArrowLeft) {
-      this.rotateByY(-currentSpeed); // 왼쪽 키 -> 구를 Y축 기준으로 회전
+      this.rotateByZ(-currentSpeed); // 왼쪽 키 -> 구를 Z축 기준으로 회전
     }
     if (this.keyState.ArrowRight) {
-      this.rotateByY(currentSpeed); // 오른쪽 키 -> 구를 Y축 기준으로 회전
+      this.rotateByZ(currentSpeed); // 오른쪽 키 -> 구를 Z축 기준으로 회전
     }
   }
 

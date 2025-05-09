@@ -486,10 +486,17 @@ export class CameraModel {
         this.camera.rotation.y = this.headRotationY;
       }
     } else {
-      // 3인칭 시점에서는 타겟 주위를 회전
-      this.rotationAngle -= deltaMove.x * 0.01;
+      // 3인칭 시점에서는 카메라 각도 변경 대신 구를 회전
+      // X축 이동(좌우 이동)은 구의 Y축 회전으로 처리
+      if (this.sphereMesh && typeof this.sphereMesh.rotateByY === "function") {
+        // 마우스 X축 이동에 따라 구를 Y축 기준으로 회전
+        this.sphereMesh.rotateByY(deltaMove.x * 0.01);
+      } else {
+        // SphereMesh가 없거나 rotateByY 메서드가 없는 경우 기존 방식으로 카메라 회전
+        this.rotationAngle -= deltaMove.x * 0.01;
+      }
 
-      // Y축 이동은 카메라 높이 조정 (제한 적용)
+      // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
       const newOffsetY = this.offset.y - deltaMove.y * 0.05;
       this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 
@@ -560,10 +567,17 @@ export class CameraModel {
       y: event.touches[0].clientY - this.previousMousePosition.y,
     };
 
-    // 3인칭 시점에서는 타겟 주위를 회전
-    this.rotationAngle -= deltaMove.x * 0.01;
+    // 3인칭 시점에서는 카메라 각도 변경 대신 구를 회전
+    // X축 이동(좌우 이동)은 구의 Y축 회전으로 처리
+    if (this.sphereMesh && typeof this.sphereMesh.rotateByY === "function") {
+      // 터치 X축 이동에 따라 구를 Y축 기준으로 회전
+      this.sphereMesh.rotateByY(deltaMove.x * 0.01);
+    } else {
+      // SphereMesh가 없거나 rotateByY 메서드가 없는 경우 기존 방식으로 카메라 회전
+      this.rotationAngle -= deltaMove.x * 0.01;
+    }
 
-    // Y축 이동은 카메라 높이 조정 (제한 적용)
+    // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
     const newOffsetY = this.offset.y - deltaMove.y * 0.05;
     this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 

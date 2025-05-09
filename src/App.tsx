@@ -186,6 +186,9 @@ const App: React.FC = () => {
     // SphereMesh에 카메라 참조 설정 (카메라 방향을 고려한 회전을 위해)
     sphere.setCamera(camera);
 
+    // CameraModel에 SphereMesh 참조 설정 (카메라 회전 시 SphereMesh 회전을 위해)
+    cameraModel.setSphere(sphere);
+
     // 카메라 위치 및 오프셋 설정 (HumanMesh를 잘 볼 수 있는 위치)
     cameraModel.setOffset(0, 10, 30);
     // 1인칭 시점에서 카메라를 머리 위치로 설정 (HumanMesh의 머리는 y = 0.85에 위치)
@@ -280,19 +283,9 @@ const App: React.FC = () => {
       // 카메라 업데이트
       cameraModel.update();
 
-      // // 카메라의 시야 벡터를 계산하고 HumanMesh가 그 방향을 바라보도록 설정
-      // if (human && cameraModel) {
-      //   // 사람 메시의 위치 계산
-      //   const humanPosition = new THREE.Vector3();
-      //   human.getWorldPosition(humanPosition);
-
-      //   // 구 표면에 접하는 평면에 투영된 카메라 시야 벡터 계산
-      //   const projectedViewVector =
-      //     cameraModel.getProjectedViewVector(humanPosition);
-
-      //   // HumanMesh가 시야 벡터 방향을 바라보도록 회전
-      //   human.lookAtDirection(projectedViewVector);
-      // }
+      // 참고: 이전에는 여기서 HumanMesh를 직접 회전시켰지만,
+      // 이제는 SphereMesh가 카메라 방향에 따라 회전하고 HumanMesh는 SphereMesh에 고정되어 있으므로
+      // HumanMesh를 직접 회전시킬 필요가 없습니다.
 
       renderer.render(scene, camera);
     };
