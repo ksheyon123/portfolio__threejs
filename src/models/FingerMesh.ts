@@ -38,17 +38,134 @@ export class FingerMesh extends THREE.Object3D {
     this.segmentRadius = segmentRadius;
     this.fingerColor = color;
 
-    // 초기 위치 설정 (XZ 평면 위 (0, ?, 0))
-    this.position.set(0, this.segmentRadius, 0);
+    // 초기 위치 설정 (XZ 평면 위)
+    this.position.set(0, 0, 0);
+  }
+
+  /**
+   * Bone 구조 생성
+   * @returns 생성된 Bone 배열
+   */
+  private createBones(): THREE.Bone[] {
+    const bones: THREE.Bone[] = [];
+
+    // 손가락 기반(base) 뼈 생성
+    const baseBone = new THREE.Bone();
+    baseBone.position.set(0, 0, 0);
+    bones.push(baseBone);
+
+    // 각 마디에 해당하는 뼈 생성
+    let prevBone = baseBone;
+    for (let i = 0; i < this.segmentCount; i++) {
+      const bone = new THREE.Bone();
+      // 이전 뼈의 끝에 현재 뼈 위치시키기 (Y축 방향으로 뻗도록 설정)
+      bone.position.set(0, this.segmentLength, 0);
+
+      // 부모-자식 관계 설정
+      prevBone.add(bone);
+      bones.push(bone);
+
+      // 다음 반복을 위해 현재 뼈를 이전 뼈로 설정
+      prevBone = bone;
+    }
+
+    return bones;
+  }
+
+  /**
+   * 손가락 지오메트리 생성 및 가중치 설정
+   * @returns 가중치가 설정된 BufferGeometry
+   */
+  private createFingerGeometry(): THREE.BufferGeometry {
+    // 손가락 형태의 지오메트리 생성 (원통형)
+    const geometry = new THREE.CylinderGeometry(
+      this.segmentRadius, // 상단 반지름
+      this.segmentRadius, // 하단 반지름
+      this.segmentLength * this.segmentCount, // 높이
+      8, // 원통의 둘레 분할 수
+      this.segmentCount * 4, // 높이 방향 분할 수
+      false // 뚜껑 유무
+    );
+
+    // 손가락이 Y축 방향으로 뻗도록 함 (회전 필요 없음)
+
+    // 정점 가중치 배열 생성
+    const position = geometry.attributes.position;
+    const vertex = new THREE.Vector3();
+
+    // 스키닝을 위한 가중치와 인덱스 배열
+    const skinIndices: number[] = [];
+    const skinWeights: number[] = [];
+
+    // 각 정점에 대한 가중치 계산
+    for (let i = 0; i < position.count; i++) {
+      vertex.fromBufferAttribute(position, i);
+
+      // 정점의 Y 위치에 따라 영향을 받는 Bone 결정
+      // 0 ~ 1 사이로 정규화된 위치 계산
+      const y =
+        (vertex.y + (this.segmentLength * this.segmentCount) / 2) /
+        (this.segmentLength * this.segmentCount);
+
+      // 영향을 받는 Bone의 인덱스 계산
+      const boneIndex = Math.min(
+        Math.floor(y * this.segmentCount),
+        this.segmentCount - 1
+      );
+
+      // 인접한 두 Bone의 영향도 계산
+      const skinIndex = boneIndex;
+      const skinWeight = 1.0;
+
+      // 각 정점은 최대 4개의 Bone에 영향을 받을 수 있음
+      // 여기서는 단순화를 위해 가장 가까운 Bone에만 100% 영향을 받도록 설정
+      skinIndices.push(skinIndex, 0, 0, 0);
+      skinWeights.push(skinWeight, 0, 0, 0);
+    }
+
+    // 가중치 정보를 지오메트리에 추가
+    geometry.setAttribute(
+      "skinIndex",
+      new THREE.Uint16BufferAttribute(new Uint16Array(skinIndices), 4)
+    );
+    geometry.setAttribute(
+      "skinWeight",
+      new THREE.Float32BufferAttribute(new Float32Array(skinWeights), 4)
+    );
+
+    return geometry;
   }
 
   /**
    * 손가락 메시 생성
-   * Bone 시스템을 사용하여 구현될 예정입니다.
+   * Bone 시스템을 사용하여 구현합니다.
    */
   public createFingerMesh(): void {
-    // 추후 구현 예정
-    console.log("FingerMesh 생성 - 아직 구현되지 않음");
+    // Bone 구조 생성
+    this.bones = this.createBones();
+
+    // 지오메트리 생성 및 가중치 설정
+    const geometry = this.createFingerGeometry();
+
+    // 재질 생성
+    const material = new THREE.MeshPhongMaterial({
+      color: this.fingerColor,
+      wireframe: false,
+    });
+
+    // 스키닝 활성화 (속성 직접 설정)
+    (material as any).skinning = true;
+
+    // Skeleton 생성
+    this.skeleton = new THREE.Skeleton(this.bones);
+
+    // SkinnedMesh 생성
+    this.fingerMesh = new THREE.SkinnedMesh(geometry, material);
+    this.fingerMesh.add(this.bones[0]); // 루트 Bone 추가
+    this.fingerMesh.bind(this.skeleton); // Skeleton 바인딩
+
+    // FingerMesh 객체에 SkinnedMesh 추가
+    this.add(this.fingerMesh);
   }
 
   /**
