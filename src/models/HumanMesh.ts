@@ -343,10 +343,6 @@ export class HumanMesh extends THREE.Object3D {
     // 방향 벡터 저장
     this.directionVector.copy(direction).normalize();
 
-    // 현재 캐릭터의 기본 방향은 z축 양의 방향(0, 0, 1)이므로
-    // 이 방향과 목표 방향 사이의 회전을 계산합니다.
-    const defaultDirection = new THREE.Vector3(0, 0, 1);
-
     // y축 회전 각도 계산 (좌우 회전)
     // Math.atan2를 사용하여 x, z 평면에서의 각도를 계산합니다.
     const angleY = Math.atan2(direction.x, direction.z);

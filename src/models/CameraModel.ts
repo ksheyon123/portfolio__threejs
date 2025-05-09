@@ -19,6 +19,9 @@ export class CameraModel {
   private offset: THREE.Vector3 = new THREE.Vector3(0, 2, 5); // 3인칭 시점에서의 카메라 오프셋
   private firstPersonOffset: THREE.Vector3 = new THREE.Vector3(0, 0.5, 0); // 1인칭 시점에서의 카메라 오프셋
 
+  // SphereMesh 참조
+  private sphereMesh: any = null; // SphereMesh 타입으로 지정하면 순환 참조 발생 가능성 있음
+
   // 구 표면에 접하는 평면 관련 설정
   private sphereRadius: number = 50; // 구의 반지름
   private tangentPlaneEnabled: boolean = false; // 접평면 모드 활성화 여부
@@ -162,6 +165,14 @@ export class CameraModel {
   public setTarget(target: THREE.Object3D): void {
     this.target = target;
     this.updateCameraPosition();
+  }
+
+  /**
+   * SphereMesh 설정
+   * @param sphere SphereMesh 인스턴스
+   */
+  public setSphere(sphere: any): void {
+    this.sphereMesh = sphere;
   }
 
   /**
@@ -380,6 +391,16 @@ export class CameraModel {
   public toggleFirstPerson(isFirstPerson: boolean): void {
     this.isFirstPerson = isFirstPerson;
     this.updateCameraPosition();
+
+    // 3인칭으로 전환 시 SphereMesh에 카메라 방향 변경 알림
+    if (
+      !isFirstPerson &&
+      this.sphereMesh &&
+      typeof this.sphereMesh.onCameraDirectionChange === "function"
+    ) {
+      const cameraDirection = this.getViewVector();
+      this.sphereMesh.onCameraDirectionChange(cameraDirection);
+    }
   }
 
   /**
@@ -473,6 +494,15 @@ export class CameraModel {
       this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 
       this.updateCameraPosition();
+
+      // SphereMesh에 카메라 방향 변경 알림
+      if (
+        this.sphereMesh &&
+        typeof this.sphereMesh.onCameraDirectionChange === "function"
+      ) {
+        const cameraDirection = this.getViewVector();
+        this.sphereMesh.onCameraDirectionChange(cameraDirection);
+      }
     }
 
     this.previousMousePosition = {
@@ -538,6 +568,15 @@ export class CameraModel {
     this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 
     this.updateCameraPosition();
+
+    // SphereMesh에 카메라 방향 변경 알림
+    if (
+      this.sphereMesh &&
+      typeof this.sphereMesh.onCameraDirectionChange === "function"
+    ) {
+      const cameraDirection = this.getViewVector();
+      this.sphereMesh.onCameraDirectionChange(cameraDirection);
+    }
 
     this.previousMousePosition = {
       x: event.touches[0].clientX,

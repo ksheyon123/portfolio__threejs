@@ -280,19 +280,19 @@ const App: React.FC = () => {
       // 카메라 업데이트
       cameraModel.update();
 
-      // 카메라의 시야 벡터를 계산하고 HumanMesh가 그 방향을 바라보도록 설정
-      if (human && cameraModel) {
-        // 사람 메시의 위치 계산
-        const humanPosition = new THREE.Vector3();
-        human.getWorldPosition(humanPosition);
+      // // 카메라의 시야 벡터를 계산하고 HumanMesh가 그 방향을 바라보도록 설정
+      // if (human && cameraModel) {
+      //   // 사람 메시의 위치 계산
+      //   const humanPosition = new THREE.Vector3();
+      //   human.getWorldPosition(humanPosition);
 
-        // 구 표면에 접하는 평면에 투영된 카메라 시야 벡터 계산
-        const projectedViewVector =
-          cameraModel.getProjectedViewVector(humanPosition);
+      //   // 구 표면에 접하는 평면에 투영된 카메라 시야 벡터 계산
+      //   const projectedViewVector =
+      //     cameraModel.getProjectedViewVector(humanPosition);
 
-        // HumanMesh가 시야 벡터 방향을 바라보도록 회전
-        human.lookAtDirection(projectedViewVector);
-      }
+      //   // HumanMesh가 시야 벡터 방향을 바라보도록 회전
+      //   human.lookAtDirection(projectedViewVector);
+      // }
 
       renderer.render(scene, camera);
     };

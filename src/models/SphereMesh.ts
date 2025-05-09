@@ -269,23 +269,12 @@ export class SphereMesh extends THREE.Object3D {
       this.rotateByX(-currentSpeed); // 아래쪽 키 -> 구를 X축 음의 방향으로 회전
     }
 
-    // 카메라 방향을 고려한 회전 적용
-    if (this.camera) {
-      // 왼쪽/오른쪽 키는 카메라 방향을 고려한 수직 축을 기준으로 회전
-      if (this.keyState.ArrowLeft) {
-        this.rotateByPerpendicularAxis(-1, currentSpeed); // 왼쪽 키 -> 카메라 방향에 수직인 축으로 회전
-      }
-      if (this.keyState.ArrowRight) {
-        this.rotateByPerpendicularAxis(1, currentSpeed); // 오른쪽 키 -> 카메라 방향에 수직인 축으로 회전
-      }
-    } else {
-      // 카메라가 없는 경우 기존 방식으로 회전
-      if (this.keyState.ArrowLeft) {
-        this.rotateByZ(-currentSpeed); // 왼쪽 키 -> 구를 Z축 양의 방향으로 회전
-      }
-      if (this.keyState.ArrowRight) {
-        this.rotateByZ(currentSpeed); // 오른쪽 키 -> 구를 Z축 음의 방향으로 회전
-      }
+    // 카메라 방향과 무관하게 일관된 회전 적용
+    if (this.keyState.ArrowLeft) {
+      this.rotateByY(-currentSpeed); // 왼쪽 키 -> 구를 Y축 기준으로 회전
+    }
+    if (this.keyState.ArrowRight) {
+      this.rotateByY(currentSpeed); // 오른쪽 키 -> 구를 Y축 기준으로 회전
     }
   }
 
@@ -339,47 +328,36 @@ export class SphereMesh extends THREE.Object3D {
   }
 
   /**
-   * 카메라 방향을 고려한 수직 축 기준 회전
-   * @param direction 방향 (1: 오른쪽, -1: 왼쪽)
-   * @param angle 회전 각도 (라디안)
-   */
-  rotateByPerpendicularAxis(direction: number, angle: number): void {
-    if (!this.camera) return;
-
-    // 카메라의 전방 벡터 (카메라가 바라보는 방향)
-    const forward = new THREE.Vector3(0, 0, -1);
-    forward.applyQuaternion(this.camera.quaternion);
-    forward.normalize();
-
-    // 카메라의 오른쪽 벡터 (카메라의 오른쪽 방향)
-    const right = new THREE.Vector3(1, 0, 0);
-    right.applyQuaternion(this.camera.quaternion);
-    right.normalize();
-
-    // 카메라의 위쪽 벡터 (카메라의 위쪽 방향)
-    const up = new THREE.Vector3();
-    up.crossVectors(forward, right);
-    up.normalize();
-
-    // 왼쪽/오른쪽 방향에 수직인 축 계산
-    // 왼쪽/오른쪽 방향은 카메라의 right 벡터와 평행
-    // 따라서 이 방향에 수직인 축은 right 벡터와 up 벡터의 외적
-    const axis = new THREE.Vector3();
-    axis.crossVectors(right, up);
-    axis.normalize();
-
-    // 방향에 따라 회전 방향 결정
-    const finalAngle = direction * angle;
-
-    // 계산된 축을 기준으로 회전
-    this.rotateOnWorldAxis(axis, finalAngle);
-  }
-
-  /**
    * 구의 반지름 반환
    */
   getRadius(): number {
     return this.radius;
+  }
+
+  /**
+   * 카메라 방향 변경 시 호출되는 메서드
+   * SphereMesh를 회전시켜 HumanMesh가 카메라 방향을 바라보는 것처럼 보이게 함
+   * @param newDirection 새로운 카메라 방향 벡터
+   */
+  onCameraDirectionChange(newDirection: THREE.Vector3): void {
+    if (!this.humanMesh) return;
+
+    // 현재 SphereMesh의 회전과 새 카메라 방향 사이의 각도 계산
+    // 카메라가 바라보는 방향의 반대 방향으로 SphereMesh를 회전
+
+    // 카메라 방향 벡터를 XZ 평면에 투영 (Y 성분 제거)
+    const directionXZ = new THREE.Vector3(
+      newDirection.x,
+      0,
+      newDirection.z
+    ).normalize();
+
+    // Y축 회전 각도 계산 (XZ 평면에서의 각도)
+    const angleY = Math.atan2(directionXZ.x, directionXZ.z);
+
+    // SphereMesh 회전 (Y축 중심으로 회전)
+    // 현재 회전을 리셋하고 새 각도로 설정
+    this.rotation.y = angleY;
   }
 
   /**
