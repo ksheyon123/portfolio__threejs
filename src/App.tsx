@@ -274,8 +274,10 @@ const App: React.FC = () => {
       // 포즈 업데이트
       human.updatePose(time);
 
-      // 카메라 업데이트
-      cameraModel.update();
+      // 카메라 업데이트 (충돌 감지 및 회피를 위해 물체 배열 전달)
+      // BoxMesh와 TreasureChestMesh 객체들을 충돌 검사 대상으로 전달
+      const collisionObjects = [...boxes, ...treasureChestsRef.current];
+      cameraModel.update(collisionObjects);
 
       renderer.render(scene, camera);
     };

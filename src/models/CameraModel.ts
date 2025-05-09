@@ -12,6 +12,9 @@ const CAMERA_SETTINGS = {
   MIN_OFFSET_Y: 0.5,
   MAX_OFFSET_Y: 10,
   HEAD_ROTATION_LIMIT: Math.PI / 3, // 60도
+  COLLISION_DISTANCE: 2, // 충돌 감지 거리
+  COLLISION_AVOIDANCE_STEP: 0.2, // 충돌 회피 시 이동 단계
+  COLLISION_RECOVERY_STEP: 0.1, // 충돌 회복 시 이동 단계
 };
 
 // 마우스/터치 이벤트 관련 상수
@@ -53,6 +56,8 @@ export class CameraModel {
   private minZoom: number = CAMERA_SETTINGS.MIN_ZOOM;
   private maxZoom: number = CAMERA_SETTINGS.MAX_ZOOM;
   private zoomLevel: number = CAMERA_SETTINGS.DEFAULT_ZOOM;
+  private originalZoomLevel: number = CAMERA_SETTINGS.DEFAULT_ZOOM; // 충돌 전 원래 zoom level 저장
+  private isColliding: boolean = false; // 충돌 상태 플래그
 
   // 머리 회전 상태 (1인칭 시점에서 사용)
   private headRotationX: number = 0;
@@ -346,6 +351,77 @@ export class CameraModel {
   }
 
   /**
+   * 카메라와 물체 간의 충돌 감지 및 회피
+   * @param objects 충돌 검사할 물체 배열
+   */
+  public checkCollisionAndAvoid(objects: THREE.Object3D[]): void {
+    if (!this.target || this.isFirstPerson) return;
+
+    // 타겟(HumanMesh) 위치 가져오기
+    const targetPosition = new THREE.Vector3();
+    this.target.getWorldPosition(targetPosition);
+
+    // 카메라 위치 가져오기
+    const cameraPosition = this.camera.position.clone();
+
+    // 카메라에서 타겟으로의 방향 벡터 계산
+    const directionToTarget = targetPosition
+      .clone()
+      .sub(cameraPosition)
+      .normalize();
+
+    // 충돌 감지를 위한 레이캐스터 생성
+    const raycaster = new THREE.Raycaster(
+      cameraPosition,
+      directionToTarget.clone().negate(), // 카메라에서 타겟 반대 방향으로 레이캐스팅
+      0,
+      CAMERA_SETTINGS.COLLISION_DISTANCE
+    );
+
+    // 타겟(HumanMesh)을 제외한 물체들과의 충돌 검사
+    const filteredObjects = objects.filter((obj) => obj !== this.target);
+    const intersects = raycaster.intersectObjects(filteredObjects, true);
+
+    if (intersects.length > 0) {
+      // 충돌이 감지됨
+      if (!this.isColliding) {
+        // 충돌 상태로 전환될 때 현재 zoom level 저장
+        this.originalZoomLevel = this.zoomLevel;
+        this.isColliding = true;
+      }
+
+      // HumanMesh 방향으로 카메라 이동 (zoom level 감소)
+      this.zoomLevel = Math.max(
+        this.minZoom,
+        this.zoomLevel - CAMERA_SETTINGS.COLLISION_AVOIDANCE_STEP
+      );
+
+      // 카메라 위치 업데이트
+      this.updateCameraPosition();
+    } else if (this.isColliding) {
+      // 충돌이 해제됨 - 원래 zoom level로 서서히 복귀
+      if (
+        Math.abs(this.zoomLevel - this.originalZoomLevel) <
+        CAMERA_SETTINGS.COLLISION_RECOVERY_STEP
+      ) {
+        // 원래 zoom level에 거의 도달했으면 정확히 설정
+        this.zoomLevel = this.originalZoomLevel;
+        this.isColliding = false;
+      } else {
+        // 원래 zoom level 방향으로 서서히 이동
+        if (this.zoomLevel < this.originalZoomLevel) {
+          this.zoomLevel += CAMERA_SETTINGS.COLLISION_RECOVERY_STEP;
+        } else {
+          this.zoomLevel -= CAMERA_SETTINGS.COLLISION_RECOVERY_STEP;
+        }
+      }
+
+      // 카메라 위치 업데이트
+      this.updateCameraPosition();
+    }
+  }
+
+  /**
    * 1인칭 시점 카메라 업데이트
    * @param targetPosition 타겟 위치
    */
@@ -449,10 +525,16 @@ export class CameraModel {
   /**
    * 카메라 업데이트 (애니메이션 프레임마다 호출)
    * 타겟이 이동한 경우 카메라도 따라서 이동
+   * @param objects 충돌 검사할 물체 배열 (선택적)
    */
-  public update(): void {
+  public update(objects?: THREE.Object3D[]): void {
     if (this.target) {
       this.updateCameraPosition();
+
+      // 충돌 검사 및 회피 (objects가 제공된 경우)
+      if (objects && objects.length > 0) {
+        this.checkCollisionAndAvoid(objects);
+      }
     }
   }
 
