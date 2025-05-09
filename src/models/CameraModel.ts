@@ -1,5 +1,26 @@
 import * as THREE from "three";
 
+// 카메라 설정 관련 상수
+const CAMERA_SETTINGS = {
+  DEFAULT_OFFSET: new THREE.Vector3(0, 2, 5),
+  FIRST_PERSON_OFFSET: new THREE.Vector3(0, 0.5, 0),
+  DEFAULT_SPHERE_RADIUS: 50,
+  DEFAULT_ROTATION_RADIUS: 5,
+  MIN_ZOOM: 1,
+  MAX_ZOOM: 10,
+  DEFAULT_ZOOM: 5,
+  MIN_OFFSET_Y: 0.5,
+  MAX_OFFSET_Y: 10,
+  HEAD_ROTATION_LIMIT: Math.PI / 3, // 60도
+};
+
+// 마우스/터치 이벤트 관련 상수
+const MOUSE_SETTINGS = {
+  ROTATION_SENSITIVITY: 0.01,
+  HEIGHT_SENSITIVITY: 0.05,
+  ZOOM_STEP: 0.5,
+};
+
 /**
  * Three.js에서 사용할 카메라 모델 클래스
  *
@@ -16,21 +37,22 @@ export class CameraModel {
 
   // 카메라 설정
   private target: THREE.Object3D | null = null;
-  private offset: THREE.Vector3 = new THREE.Vector3(0, 2, 5); // 3인칭 시점에서의 카메라 오프셋
-  private firstPersonOffset: THREE.Vector3 = new THREE.Vector3(0, 0.5, 0); // 1인칭 시점에서의 카메라 오프셋
+  private offset: THREE.Vector3 = CAMERA_SETTINGS.DEFAULT_OFFSET.clone();
+  private firstPersonOffset: THREE.Vector3 =
+    CAMERA_SETTINGS.FIRST_PERSON_OFFSET.clone();
 
   // 구 표면에 접하는 평면 관련 설정
-  private sphereRadius: number = 50; // 구의 반지름
-  private tangentPlaneEnabled: boolean = false; // 접평면 모드 활성화 여부
+  private sphereRadius: number = CAMERA_SETTINGS.DEFAULT_SPHERE_RADIUS;
+  private tangentPlaneEnabled: boolean = false;
 
   // 카메라 상태
   private isFirstPerson: boolean = false;
   private isAltKeyPressed: boolean = false;
   private rotationAngle: number = 0;
-  private rotationRadius: number = 5;
-  private minZoom: number = 1;
-  private maxZoom: number = 10;
-  private zoomLevel: number = 5;
+  private rotationRadius: number = CAMERA_SETTINGS.DEFAULT_ROTATION_RADIUS;
+  private minZoom: number = CAMERA_SETTINGS.MIN_ZOOM;
+  private maxZoom: number = CAMERA_SETTINGS.MAX_ZOOM;
+  private zoomLevel: number = CAMERA_SETTINGS.DEFAULT_ZOOM;
 
   // 머리 회전 상태 (1인칭 시점에서 사용)
   private headRotationX: number = 0;
@@ -39,6 +61,32 @@ export class CameraModel {
   // 마우스 상태 추적
   private isDragging: boolean = false;
   private previousMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+
+  // 이벤트 핸들러 참조 저장
+  private eventHandlers: {
+    keydown: EventListener | null;
+    keyup: EventListener | null;
+    mousedown: EventListener | null;
+    mousemove: EventListener | null;
+    mouseup: EventListener | null;
+    wheel: EventListener | null;
+    touchstart: EventListener | null;
+    touchmove: EventListener | null;
+    touchend: EventListener | null;
+  } = {
+    keydown: null,
+    keyup: null,
+    mousedown: null,
+    mousemove: null,
+    mouseup: null,
+    wheel: null,
+    touchstart: null,
+    touchmove: null,
+    touchend: null,
+  };
+
+  // 이벤트 바인딩된 DOM 요소
+  private domElement: HTMLElement | Window;
 
   /**
    * CameraModel 생성자
@@ -50,108 +98,133 @@ export class CameraModel {
     domElement: HTMLElement | Window = window
   ) {
     this.camera = camera;
+    this.domElement = domElement;
 
     // 이벤트 리스너 등록
-    this.setupEventListeners(domElement);
+    this.setupEventListeners();
   }
 
   /**
    * 이벤트 리스너 설정
-   * @param domElement 이벤트를 바인딩할 DOM 요소
    */
-  private setupEventListeners(domElement: HTMLElement | Window): void {
+  private setupEventListeners(): void {
     // 키보드 이벤트 (Alt 키)
-    window.addEventListener(
-      "keydown",
-      this.handleKeyDown.bind(this) as EventListener
-    );
-    window.addEventListener(
-      "keyup",
-      this.handleKeyUp.bind(this) as EventListener
-    );
+    this.eventHandlers.keydown = this.handleKeyDown.bind(this) as EventListener;
+    this.eventHandlers.keyup = this.handleKeyUp.bind(this) as EventListener;
 
     // 마우스 이벤트 (드래그, 휠)
-    domElement.addEventListener(
-      "mousedown",
-      this.handleMouseDown.bind(this) as EventListener
-    );
-    domElement.addEventListener(
-      "mousemove",
-      this.handleMouseMove.bind(this) as EventListener
-    );
-    domElement.addEventListener(
-      "mouseup",
-      this.handleMouseUp.bind(this) as EventListener
-    );
-    domElement.addEventListener(
-      "wheel",
-      this.handleWheel.bind(this) as EventListener
-    );
+    this.eventHandlers.mousedown = this.handleMouseDown.bind(
+      this
+    ) as EventListener;
+    this.eventHandlers.mousemove = this.handleMouseMove.bind(
+      this
+    ) as EventListener;
+    this.eventHandlers.mouseup = this.handleMouseUp.bind(this) as EventListener;
+    this.eventHandlers.wheel = this.handleWheel.bind(this) as EventListener;
 
     // 터치 이벤트 (모바일 지원)
-    if (domElement instanceof HTMLElement) {
-      domElement.addEventListener(
+    if (this.domElement instanceof HTMLElement) {
+      this.eventHandlers.touchstart = this.handleTouchStart.bind(
+        this
+      ) as EventListener;
+      this.eventHandlers.touchmove = this.handleTouchMove.bind(
+        this
+      ) as EventListener;
+      this.eventHandlers.touchend = this.handleTouchEnd.bind(
+        this
+      ) as EventListener;
+    }
+
+    // 이벤트 리스너 등록
+    window.addEventListener("keydown", this.eventHandlers.keydown);
+    window.addEventListener("keyup", this.eventHandlers.keyup);
+    this.domElement.addEventListener("mousedown", this.eventHandlers.mousedown);
+    this.domElement.addEventListener("mousemove", this.eventHandlers.mousemove);
+    this.domElement.addEventListener("mouseup", this.eventHandlers.mouseup);
+    this.domElement.addEventListener("wheel", this.eventHandlers.wheel);
+
+    if (
+      this.domElement instanceof HTMLElement &&
+      this.eventHandlers.touchstart &&
+      this.eventHandlers.touchmove &&
+      this.eventHandlers.touchend
+    ) {
+      this.domElement.addEventListener(
         "touchstart",
-        this.handleTouchStart.bind(this) as EventListener
+        this.eventHandlers.touchstart
       );
-      domElement.addEventListener(
+      this.domElement.addEventListener(
         "touchmove",
-        this.handleTouchMove.bind(this) as EventListener
+        this.eventHandlers.touchmove
       );
-      domElement.addEventListener(
-        "touchend",
-        this.handleTouchEnd.bind(this) as EventListener
-      );
+      this.domElement.addEventListener("touchend", this.eventHandlers.touchend);
     }
   }
 
   /**
    * 이벤트 리스너 제거 (메모리 해제)
-   * @param domElement 이벤트가 바인딩된 DOM 요소
    */
-  public removeEventListeners(domElement: HTMLElement | Window = window): void {
+  public removeEventListeners(): void {
     // 키보드 이벤트
-    window.removeEventListener(
-      "keydown",
-      this.handleKeyDown.bind(this) as EventListener
-    );
-    window.removeEventListener(
-      "keyup",
-      this.handleKeyUp.bind(this) as EventListener
-    );
+    if (this.eventHandlers.keydown) {
+      window.removeEventListener("keydown", this.eventHandlers.keydown);
+      this.eventHandlers.keydown = null;
+    }
+    if (this.eventHandlers.keyup) {
+      window.removeEventListener("keyup", this.eventHandlers.keyup);
+      this.eventHandlers.keyup = null;
+    }
 
     // 마우스 이벤트
-    domElement.removeEventListener(
-      "mousedown",
-      this.handleMouseDown.bind(this) as EventListener
-    );
-    domElement.removeEventListener(
-      "mousemove",
-      this.handleMouseMove.bind(this) as EventListener
-    );
-    domElement.removeEventListener(
-      "mouseup",
-      this.handleMouseUp.bind(this) as EventListener
-    );
-    domElement.removeEventListener(
-      "wheel",
-      this.handleWheel.bind(this) as EventListener
-    );
+    if (this.eventHandlers.mousedown) {
+      this.domElement.removeEventListener(
+        "mousedown",
+        this.eventHandlers.mousedown
+      );
+      this.eventHandlers.mousedown = null;
+    }
+    if (this.eventHandlers.mousemove) {
+      this.domElement.removeEventListener(
+        "mousemove",
+        this.eventHandlers.mousemove
+      );
+      this.eventHandlers.mousemove = null;
+    }
+    if (this.eventHandlers.mouseup) {
+      this.domElement.removeEventListener(
+        "mouseup",
+        this.eventHandlers.mouseup
+      );
+      this.eventHandlers.mouseup = null;
+    }
+    if (this.eventHandlers.wheel) {
+      this.domElement.removeEventListener("wheel", this.eventHandlers.wheel);
+      this.eventHandlers.wheel = null;
+    }
 
     // 터치 이벤트
-    if (domElement instanceof HTMLElement) {
-      domElement.removeEventListener(
-        "touchstart",
-        this.handleTouchStart.bind(this) as EventListener
-      );
-      domElement.removeEventListener(
-        "touchmove",
-        this.handleTouchMove.bind(this) as EventListener
-      );
-      domElement.removeEventListener(
-        "touchend",
-        this.handleTouchEnd.bind(this) as EventListener
-      );
+    if (this.domElement instanceof HTMLElement) {
+      if (this.eventHandlers.touchstart) {
+        this.domElement.removeEventListener(
+          "touchstart",
+          this.eventHandlers.touchstart
+        );
+        this.eventHandlers.touchstart = null;
+      }
+      if (this.eventHandlers.touchmove) {
+        this.domElement.removeEventListener(
+          "touchmove",
+          this.eventHandlers.touchmove
+        );
+        this.eventHandlers.touchmove = null;
+      }
+      if (this.eventHandlers.touchend) {
+        this.domElement.removeEventListener(
+          "touchend",
+          this.eventHandlers.touchend
+        );
+        this.eventHandlers.touchend = null;
+      }
     }
   }
 
@@ -264,97 +337,113 @@ export class CameraModel {
     this.target.getWorldPosition(targetPosition);
 
     if (this.isFirstPerson) {
-      // 1인칭 시점: 타겟의 "눈" 위치에 카메라 배치
-      const firstPersonPosition = targetPosition
-        .clone()
-        .add(this.firstPersonOffset);
-      this.camera.position.copy(firstPersonPosition);
-
-      // 카메라 회전 설정 (머리의 회전 방향으로 카메라도 바라봄)
-      this.camera.rotation.x = this.headRotationX;
-      this.camera.rotation.y = this.headRotationY;
-      this.camera.rotation.z = 0;
+      this.updateFirstPersonCamera(targetPosition);
     } else if (this.tangentPlaneEnabled) {
-      // 접평면 모드: 구 표면에 접하는 평면과 나란한 평면 위에 카메라 배치
-
-      // 구의 중심은 원점으로 가정
-      const sphereCenter = new THREE.Vector3(0, 0, 0);
-
-      // 타겟에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
-      const normal = targetPosition.clone().sub(sphereCenter).normalize();
-
-      // 접평면 위의 한 점 (타겟 위치)
-      const planePoint = targetPosition.clone();
-
-      // 회전 각도에 따른 카메라 위치 계산
-      const theta = this.rotationAngle;
-
-      try {
-        // 접평면 위에서의 카메라 위치 계산
-        // 1. 접평면의 기준 벡터 계산 (법선 벡터에 수직인 임의의 벡터)
-        const tangentX = new THREE.Vector3(1, 0, 0);
-        if (Math.abs(normal.dot(tangentX)) > 0.9) {
-          // 법선이 x축과 거의 평행하면 y축 사용
-          tangentX.set(0, 1, 0);
-        }
-
-        // 2. 법선 벡터와 수직인 첫 번째 접평면 벡터 계산
-        const tangent1 = new THREE.Vector3()
-          .crossVectors(normal, tangentX)
-          .normalize();
-
-        // 3. 두 번째 접평면 벡터 계산 (법선과 첫 번째 접평면 벡터에 수직)
-        const tangent2 = new THREE.Vector3()
-          .crossVectors(normal, tangent1)
-          .normalize();
-
-        // 4. 회전 각도와 거리를 고려하여 접평면 위의 카메라 위치 계산
-        const distance = this.rotationRadius * (this.zoomLevel / 5);
-        const offsetOnPlane = new THREE.Vector3()
-          .addScaledVector(tangent1, distance * -Math.cos(theta))
-          .addScaledVector(tangent2, distance * -Math.sin(theta));
-
-        // 5. 접평면에서 약간 떨어진 위치에 카메라 배치 (법선 방향으로)
-        const cameraPosition = planePoint
-          .clone()
-          .add(offsetOnPlane)
-          .addScaledVector(normal, this.offset.y); // 높이 조정
-
-        this.camera.position.copy(cameraPosition);
-
-        // 타겟을 바라보도록 설정
-        this.camera.lookAt(targetPosition);
-      } catch (error) {
-        console.error("접평면 모드 카메라 위치 계산 오류:", error);
-
-        // 오류 발생 시 일반 3인칭 시점으로 대체
-        const theta = this.rotationAngle;
-        const distance = this.rotationRadius * (this.zoomLevel / 5);
-        const x = distance * Math.sin(theta);
-        const z = distance * Math.cos(theta);
-
-        this.camera.position.x = targetPosition.x + x;
-        this.camera.position.y = targetPosition.y + this.offset.y;
-        this.camera.position.z = targetPosition.z + z;
-
-        this.camera.lookAt(targetPosition);
-      }
+      this.updateTangentPlaneCamera(targetPosition);
     } else {
-      // 일반 3인칭 시점: 타겟 주위를 회전하는 위치에 카메라 배치
-      const theta = this.rotationAngle;
+      this.updateThirdPersonCamera(targetPosition);
+    }
+  }
 
-      // 회전 반경과 줌 레벨을 고려한 위치 계산
+  /**
+   * 1인칭 시점 카메라 업데이트
+   * @param targetPosition 타겟 위치
+   */
+  private updateFirstPersonCamera(targetPosition: THREE.Vector3): void {
+    // 1인칭 시점: 타겟의 "눈" 위치에 카메라 배치
+    const firstPersonPosition = targetPosition
+      .clone()
+      .add(this.firstPersonOffset);
+    this.camera.position.copy(firstPersonPosition);
+
+    // 카메라 회전 설정 (머리의 회전 방향으로 카메라도 바라봄)
+    this.camera.rotation.x = this.headRotationX;
+    this.camera.rotation.y = this.headRotationY;
+    this.camera.rotation.z = 0;
+  }
+
+  /**
+   * 접평면 모드 카메라 업데이트
+   * @param targetPosition 타겟 위치
+   */
+  private updateTangentPlaneCamera(targetPosition: THREE.Vector3): void {
+    // 접평면 모드: 구 표면에 접하는 평면과 나란한 평면 위에 카메라 배치
+
+    // 구의 중심은 원점으로 가정
+    const sphereCenter = new THREE.Vector3(0, 0, 0);
+
+    // 타겟에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
+    const normal = targetPosition.clone().sub(sphereCenter).normalize();
+
+    // 접평면 위의 한 점 (타겟 위치)
+    const planePoint = targetPosition.clone();
+
+    // 회전 각도에 따른 카메라 위치 계산
+    const theta = this.rotationAngle;
+
+    try {
+      // 접평면 위에서의 카메라 위치 계산
+      // 1. 접평면의 기준 벡터 계산 (법선 벡터에 수직인 임의의 벡터)
+      const tangentX = new THREE.Vector3(1, 0, 0);
+      if (Math.abs(normal.dot(tangentX)) > 0.9) {
+        // 법선이 x축과 거의 평행하면 y축 사용
+        tangentX.set(0, 1, 0);
+      }
+
+      // 2. 법선 벡터와 수직인 첫 번째 접평면 벡터 계산
+      const tangent1 = new THREE.Vector3()
+        .crossVectors(normal, tangentX)
+        .normalize();
+
+      // 3. 두 번째 접평면 벡터 계산 (법선과 첫 번째 접평면 벡터에 수직)
+      const tangent2 = new THREE.Vector3()
+        .crossVectors(normal, tangent1)
+        .normalize();
+
+      // 4. 회전 각도와 거리를 고려하여 접평면 위의 카메라 위치 계산
       const distance = this.rotationRadius * (this.zoomLevel / 5);
-      const x = distance * Math.sin(theta);
-      const z = distance * Math.cos(theta);
-      // 타겟 위치에 오프셋 적용
-      this.camera.position.x = targetPosition.x + x;
-      this.camera.position.y = targetPosition.y + this.offset.y;
-      this.camera.position.z = targetPosition.z + z;
+      const offsetOnPlane = new THREE.Vector3()
+        .addScaledVector(tangent1, distance * -Math.cos(theta))
+        .addScaledVector(tangent2, distance * -Math.sin(theta));
+
+      // 5. 접평면에서 약간 떨어진 위치에 카메라 배치 (법선 방향으로)
+      const cameraPosition = planePoint
+        .clone()
+        .add(offsetOnPlane)
+        .addScaledVector(normal, this.offset.y); // 높이 조정
+
+      this.camera.position.copy(cameraPosition);
 
       // 타겟을 바라보도록 설정
       this.camera.lookAt(targetPosition);
+    } catch (error) {
+      console.error("접평면 모드 카메라 위치 계산 오류:", error);
+
+      // 오류 발생 시 일반 3인칭 시점으로 대체
+      this.updateThirdPersonCamera(targetPosition);
     }
+  }
+
+  /**
+   * 3인칭 시점 카메라 업데이트
+   * @param targetPosition 타겟 위치
+   */
+  private updateThirdPersonCamera(targetPosition: THREE.Vector3): void {
+    // 일반 3인칭 시점: 타겟 주위를 회전하는 위치에 카메라 배치
+    const theta = this.rotationAngle;
+
+    // 회전 반경과 줌 레벨을 고려한 위치 계산
+    const distance = this.rotationRadius * (this.zoomLevel / 5);
+    const x = distance * Math.sin(theta);
+    const z = distance * Math.cos(theta);
+
+    // 타겟 위치에 오프셋 적용
+    this.camera.position.x = targetPosition.x + x;
+    this.camera.position.y = targetPosition.y + this.offset.y;
+    this.camera.position.z = targetPosition.z + z;
+
+    // 타겟을 바라보도록 설정
+    this.camera.lookAt(targetPosition);
   }
 
   /**
@@ -391,7 +480,7 @@ export class CameraModel {
       this.headRotationY = 0;
 
       // HumanMesh인 경우 머리 회전 초기화
-      if (this.target && "rotateHead" in this.target) {
+      if (this.target && "resetHeadRotation" in this.target) {
         (this.target as any).resetHeadRotation();
       }
     }
@@ -433,46 +522,71 @@ export class CameraModel {
     };
 
     if (this.isFirstPerson) {
-      // 1인칭 시점에서는 머리만 회전
-      if (this.target) {
-        // X축 이동은 Y축 회전 (좌우 회전)
-        this.headRotationY -= deltaMove.x * 0.01;
-
-        // Y축 이동은 X축 회전 (상하 회전) - 제한 적용
-        this.headRotationX += deltaMove.y * 0.01;
-        this.headRotationX = Math.max(
-          -Math.PI / 3,
-          Math.min(Math.PI / 3, this.headRotationX)
-        );
-
-        // HumanMesh인 경우 머리만 회전
-        if ("rotateHead" in this.target) {
-          (this.target as any).rotateHead(
-            this.headRotationX,
-            this.headRotationY,
-            0
-          );
-        }
-
-        // 카메라 회전 업데이트
-        this.camera.rotation.x = this.headRotationX;
-        this.camera.rotation.y = this.headRotationY;
-      }
+      this.handleFirstPersonMouseMove(deltaMove);
     } else {
-      // 카메라 회전 처리
-      this.rotationAngle -= deltaMove.x * 0.01;
-
-      // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
-      const newOffsetY = this.offset.y - deltaMove.y * 0.05;
-      this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
-
-      this.updateCameraPosition();
+      this.handleThirdPersonMouseMove(deltaMove);
     }
 
     this.previousMousePosition = {
       x: event.clientX,
       y: event.clientY,
     };
+  }
+
+  /**
+   * 1인칭 시점에서의 마우스 이동 처리
+   * @param deltaMove 마우스 이동량
+   */
+  private handleFirstPersonMouseMove(deltaMove: {
+    x: number;
+    y: number;
+  }): void {
+    if (!this.target) return;
+
+    // X축 이동은 Y축 회전 (좌우 회전)
+    this.headRotationY -= deltaMove.x * MOUSE_SETTINGS.ROTATION_SENSITIVITY;
+
+    // Y축 이동은 X축 회전 (상하 회전) - 제한 적용
+    this.headRotationX += deltaMove.y * MOUSE_SETTINGS.ROTATION_SENSITIVITY;
+    this.headRotationX = Math.max(
+      -CAMERA_SETTINGS.HEAD_ROTATION_LIMIT,
+      Math.min(CAMERA_SETTINGS.HEAD_ROTATION_LIMIT, this.headRotationX)
+    );
+
+    // HumanMesh인 경우 머리만 회전
+    if ("rotateHead" in this.target) {
+      (this.target as any).rotateHead(
+        this.headRotationX,
+        this.headRotationY,
+        0
+      );
+    }
+
+    // 카메라 회전 업데이트
+    this.camera.rotation.x = this.headRotationX;
+    this.camera.rotation.y = this.headRotationY;
+  }
+
+  /**
+   * 3인칭 시점에서의 마우스 이동 처리
+   * @param deltaMove 마우스 이동량
+   */
+  private handleThirdPersonMouseMove(deltaMove: {
+    x: number;
+    y: number;
+  }): void {
+    // 카메라 회전 처리
+    this.rotationAngle -= deltaMove.x * MOUSE_SETTINGS.ROTATION_SENSITIVITY;
+
+    // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
+    const newOffsetY =
+      this.offset.y - deltaMove.y * MOUSE_SETTINGS.HEIGHT_SENSITIVITY;
+    this.offset.y = Math.max(
+      CAMERA_SETTINGS.MIN_OFFSET_Y,
+      Math.min(CAMERA_SETTINGS.MAX_OFFSET_Y, newOffsetY)
+    );
+
+    this.updateCameraPosition();
   }
 
   /**
@@ -491,7 +605,8 @@ export class CameraModel {
     event.preventDefault();
 
     // 휠 방향에 따라 줌 레벨 조정
-    const zoomDelta = event.deltaY > 0 ? 0.5 : -0.5;
+    const zoomDelta =
+      event.deltaY > 0 ? MOUSE_SETTINGS.ZOOM_STEP : -MOUSE_SETTINGS.ZOOM_STEP;
     this.zoomLevel = Math.max(
       this.minZoom,
       Math.min(this.maxZoom, this.zoomLevel + zoomDelta)
@@ -499,6 +614,9 @@ export class CameraModel {
 
     this.updateCameraPosition();
   }
+
+  // 이전 터치 위치 저장
+  private previousTouchX: number | null = null;
 
   /**
    * 터치 시작 이벤트 핸들러
@@ -510,6 +628,7 @@ export class CameraModel {
         x: event.touches[0].clientX,
         y: event.touches[0].clientY,
       };
+      this.previousTouchX = event.touches[0].clientX;
     }
   }
 
@@ -524,19 +643,14 @@ export class CameraModel {
       y: event.touches[0].clientY - this.previousMousePosition.y,
     };
 
-    // 카메라 회전 처리
-    this.rotationAngle -= deltaMove.x * 0.01;
-
-    // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
-    const newOffsetY = this.offset.y - deltaMove.y * 0.05;
-    this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
-
-    this.updateCameraPosition();
+    // 3인칭 시점에서만 터치 이동 처리 (1인칭 시점은 복잡한 터치 제스처가 필요)
+    this.handleThirdPersonMouseMove(deltaMove);
 
     this.previousMousePosition = {
       x: event.touches[0].clientX,
       y: event.touches[0].clientY,
     };
+    this.previousTouchX = event.touches[0].clientX;
   }
 
   /**
@@ -544,6 +658,7 @@ export class CameraModel {
    */
   private handleTouchEnd(): void {
     this.isDragging = false;
+    this.previousTouchX = null;
   }
 
   /**
