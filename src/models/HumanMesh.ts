@@ -334,32 +334,6 @@ export class HumanMesh extends THREE.Object3D {
   }
 
   /**
-   * 캐릭터가 특정 방향을 바라보도록 회전시킵니다.
-   * @param direction 바라볼 방향 벡터 (정규화된 벡터)
-   */
-  lookAtDirection(direction: THREE.Vector3): void {
-    if (direction.length() === 0) return;
-
-    // 방향 벡터 저장
-    this.directionVector.copy(direction).normalize();
-
-    // y축 회전 각도 계산 (좌우 회전)
-    // Math.atan2를 사용하여 x, z 평면에서의 각도를 계산합니다.
-    const angleY = Math.atan2(direction.x, direction.z);
-
-    // 캐릭터 회전 (y축 중심으로 회전)
-    this.rotation.y = angleY;
-  }
-
-  /**
-   * 현재 캐릭터가 바라보고 있는 방향 벡터를 반환합니다.
-   * @returns 정규화된 방향 벡터
-   */
-  getDirection(): THREE.Vector3 {
-    return this.directionVector.clone();
-  }
-
-  /**
    * 메모리 해제
    */
   dispose(): void {

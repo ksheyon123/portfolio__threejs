@@ -265,37 +265,6 @@ export class CameraModel {
   }
 
   /**
-   * 구 표면에 접하는 평면에 투영된 시야 벡터 계산
-   * @param humanPosition 사람 메시의 위치
-   * @returns 평면에 투영된 시야 벡터 (정규화됨)
-   */
-  public getProjectedViewVector(humanPosition: THREE.Vector3): THREE.Vector3 {
-    // 구의 중심 가져오기 (SphereMesh가 있으면 그 위치 사용, 없으면 원점 사용)
-    const sphereCenter =
-      this.sphereMesh && this.sphereMesh.position
-        ? this.sphereMesh.position.clone()
-        : new THREE.Vector3(0, 0, 0);
-
-    // 사람 메시에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
-    const normal = humanPosition.clone().sub(sphereCenter).normalize();
-
-    // 카메라의 시야 벡터
-    const viewVector = this.getViewVector();
-
-    // 시야 벡터를 접평면에 투영
-    // 투영 공식: v_proj = v - (v·n)n
-    const dotProduct = viewVector.dot(normal);
-    const projectedVector = viewVector
-      .clone()
-      .sub(normal.clone().multiplyScalar(dotProduct));
-
-    // 투영된 벡터 정규화 (길이가 0이면 원래 벡터 반환)
-    return projectedVector.length() > 0.001
-      ? projectedVector.normalize()
-      : viewVector.clone();
-  }
-
-  /**
    * 카메라 위치 및 방향 업데이트
    * 타겟 위치, 시점 모드, 회전 각도, 줌 레벨 등을 고려하여 카메라 위치 계산
    */
