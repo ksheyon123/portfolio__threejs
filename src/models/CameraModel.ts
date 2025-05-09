@@ -246,6 +246,11 @@ export class CameraModel {
    */
   public setTangentPlaneMode(enabled: boolean): void {
     this.tangentPlaneEnabled = enabled;
+
+    // 접평면 모드가 활성화되면 카메라 위치 즉시 업데이트
+    if (this.target) {
+      this.updateCameraPosition();
+    }
   }
 
   /**
@@ -253,8 +258,8 @@ export class CameraModel {
    * @returns 카메라가 바라보는 방향 벡터 (정규화됨)
    */
   public getViewVector(): THREE.Vector3 {
-    // 카메라가 바라보는 방향 벡터 계산
-    const viewVector = new THREE.Vector3(0, 0, -1);
+    // 카메라가 바라보는 방향 벡터 계산 (z축 양의 방향)
+    const viewVector = new THREE.Vector3(0, 0, 1);
     viewVector.applyQuaternion(this.camera.quaternion);
     return viewVector.normalize();
   }
@@ -265,8 +270,11 @@ export class CameraModel {
    * @returns 평면에 투영된 시야 벡터 (정규화됨)
    */
   public getProjectedViewVector(humanPosition: THREE.Vector3): THREE.Vector3 {
-    // 구의 중심은 원점 (0,0,0)
-    const sphereCenter = new THREE.Vector3(0, 0, 0);
+    // 구의 중심 가져오기 (SphereMesh가 있으면 그 위치 사용, 없으면 원점 사용)
+    const sphereCenter =
+      this.sphereMesh && this.sphereMesh.position
+        ? this.sphereMesh.position.clone()
+        : new THREE.Vector3(0, 0, 0);
 
     // 사람 메시에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
     const normal = humanPosition.clone().sub(sphereCenter).normalize();
@@ -281,8 +289,10 @@ export class CameraModel {
       .clone()
       .sub(normal.clone().multiplyScalar(dotProduct));
 
-    // 투영된 벡터 정규화
-    return projectedVector.normalize();
+    // 투영된 벡터 정규화 (길이가 0이면 원래 벡터 반환)
+    return projectedVector.length() > 0.001
+      ? projectedVector.normalize()
+      : viewVector.clone();
   }
 
   /**
@@ -309,8 +319,13 @@ export class CameraModel {
     } else if (this.tangentPlaneEnabled) {
       // 접평면 모드: 구 표면에 접하는 평면과 나란한 평면 위에 카메라 배치
 
-      // 구의 중심은 원점 (0,0,0)
-      const sphereCenter = new THREE.Vector3(0, 0, 0);
+      // 구의 중심 가져오기 (SphereMesh가 있으면 그 위치 사용, 없으면 원점 사용)
+      const sphereCenter =
+        this.sphereMesh && this.sphereMesh.getWorldPosition
+          ? new THREE.Vector3().setFromMatrixPosition(
+              this.sphereMesh.matrixWorld
+            )
+          : new THREE.Vector3(0, 0, 0);
 
       // 타겟에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
       const normal = targetPosition.clone().sub(sphereCenter).normalize();
@@ -321,40 +336,56 @@ export class CameraModel {
       // 회전 각도에 따른 카메라 위치 계산
       const theta = this.rotationAngle;
 
-      // 접평면 위에서의 카메라 위치 계산
-      // 1. 접평면의 기준 벡터 계산 (법선 벡터에 수직인 임의의 벡터)
-      const tangentX = new THREE.Vector3(1, 0, 0);
-      if (Math.abs(normal.dot(tangentX)) > 0.9) {
-        // 법선이 x축과 거의 평행하면 y축 사용
-        tangentX.set(0, 1, 0);
+      try {
+        // 접평면 위에서의 카메라 위치 계산
+        // 1. 접평면의 기준 벡터 계산 (법선 벡터에 수직인 임의의 벡터)
+        const tangentX = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(normal.dot(tangentX)) > 0.9) {
+          // 법선이 x축과 거의 평행하면 y축 사용
+          tangentX.set(0, 1, 0);
+        }
+
+        // 2. 법선 벡터와 수직인 첫 번째 접평면 벡터 계산
+        const tangent1 = new THREE.Vector3()
+          .crossVectors(normal, tangentX)
+          .normalize();
+
+        // 3. 두 번째 접평면 벡터 계산 (법선과 첫 번째 접평면 벡터에 수직)
+        const tangent2 = new THREE.Vector3()
+          .crossVectors(normal, tangent1)
+          .normalize();
+
+        // 4. 회전 각도와 거리를 고려하여 접평면 위의 카메라 위치 계산
+        const distance = this.rotationRadius * (this.zoomLevel / 5);
+        const offsetOnPlane = new THREE.Vector3()
+          .addScaledVector(tangent1, distance * -Math.cos(theta))
+          .addScaledVector(tangent2, distance * -Math.sin(theta));
+
+        // 5. 접평면에서 약간 떨어진 위치에 카메라 배치 (법선 방향으로)
+        const cameraPosition = planePoint
+          .clone()
+          .add(offsetOnPlane)
+          .addScaledVector(normal, this.offset.y); // 높이 조정
+
+        this.camera.position.copy(cameraPosition);
+
+        // 타겟을 바라보도록 설정
+        this.camera.lookAt(targetPosition);
+      } catch (error) {
+        console.error("접평면 모드 카메라 위치 계산 오류:", error);
+
+        // 오류 발생 시 일반 3인칭 시점으로 대체
+        const theta = this.rotationAngle;
+        const distance = this.rotationRadius * (this.zoomLevel / 5);
+        const x = distance * Math.sin(theta);
+        const z = distance * Math.cos(theta);
+
+        this.camera.position.x = targetPosition.x + x;
+        this.camera.position.y = targetPosition.y + this.offset.y;
+        this.camera.position.z = targetPosition.z + z;
+
+        this.camera.lookAt(targetPosition);
       }
-
-      // 2. 법선 벡터와 수직인 첫 번째 접평면 벡터 계산
-      const tangent1 = new THREE.Vector3()
-        .crossVectors(normal, tangentX)
-        .normalize();
-
-      // 3. 두 번째 접평면 벡터 계산 (법선과 첫 번째 접평면 벡터에 수직)
-      const tangent2 = new THREE.Vector3()
-        .crossVectors(normal, tangent1)
-        .normalize();
-
-      // 4. 회전 각도와 거리를 고려하여 접평면 위의 카메라 위치 계산
-      const distance = this.rotationRadius * (this.zoomLevel / 5);
-      const offsetOnPlane = new THREE.Vector3()
-        .addScaledVector(tangent1, distance * Math.cos(theta))
-        .addScaledVector(tangent2, distance * Math.sin(theta));
-
-      // 5. 접평면에서 약간 떨어진 위치에 카메라 배치 (법선 방향으로)
-      const cameraPosition = planePoint
-        .clone()
-        .add(offsetOnPlane)
-        .addScaledVector(normal, this.offset.y); // 높이 조정
-
-      this.camera.position.copy(cameraPosition);
-
-      // 타겟을 바라보도록 설정
-      this.camera.lookAt(targetPosition);
     } else {
       // 일반 3인칭 시점: 타겟 주위를 회전하는 위치에 카메라 배치
       const theta = this.rotationAngle;
@@ -363,7 +394,6 @@ export class CameraModel {
       const distance = this.rotationRadius * (this.zoomLevel / 5);
       const x = distance * Math.sin(theta);
       const z = distance * Math.cos(theta);
-
       // 타겟 위치에 오프셋 적용
       this.camera.position.x = targetPosition.x + x;
       this.camera.position.y = targetPosition.y + this.offset.y;

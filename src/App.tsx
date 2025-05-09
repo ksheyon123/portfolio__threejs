@@ -283,10 +283,6 @@ const App: React.FC = () => {
       // 카메라 업데이트
       cameraModel.update();
 
-      // 참고: 이전에는 여기서 HumanMesh를 직접 회전시켰지만,
-      // 이제는 SphereMesh가 카메라 방향에 따라 회전하고 HumanMesh는 SphereMesh에 고정되어 있으므로
-      // HumanMesh를 직접 회전시킬 필요가 없습니다.
-
       renderer.render(scene, camera);
     };
 
