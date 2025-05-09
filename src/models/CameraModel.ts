@@ -575,10 +575,8 @@ export class CameraModel {
     x: number;
     y: number;
   }): void {
-    // 카메라 회전 처리
-    this.rotationAngle -= deltaMove.x * MOUSE_SETTINGS.ROTATION_SENSITIVITY;
-
-    // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
+    // X축 이동(좌우 회전)은 무시하고 Y축 이동(상하 조정)만 처리
+    // Y축 이동은 카메라 높이 조정 (제한 적용)
     const newOffsetY =
       this.offset.y - deltaMove.y * MOUSE_SETTINGS.HEIGHT_SENSITIVITY;
     this.offset.y = Math.max(
