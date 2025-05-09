@@ -19,9 +19,6 @@ export class CameraModel {
   private offset: THREE.Vector3 = new THREE.Vector3(0, 2, 5); // 3인칭 시점에서의 카메라 오프셋
   private firstPersonOffset: THREE.Vector3 = new THREE.Vector3(0, 0.5, 0); // 1인칭 시점에서의 카메라 오프셋
 
-  // SphereMesh 참조
-  private sphereMesh: any = null; // SphereMesh 타입으로 지정하면 순환 참조 발생 가능성 있음
-
   // 구 표면에 접하는 평면 관련 설정
   private sphereRadius: number = 50; // 구의 반지름
   private tangentPlaneEnabled: boolean = false; // 접평면 모드 활성화 여부
@@ -168,14 +165,6 @@ export class CameraModel {
   }
 
   /**
-   * SphereMesh 설정
-   * @param sphere SphereMesh 인스턴스
-   */
-  public setSphere(sphere: any): void {
-    this.sphereMesh = sphere;
-  }
-
-  /**
    * 카메라 오프셋 설정 (3인칭 시점에서 타겟으로부터의 상대적 위치)
    * @param x X축 오프셋
    * @param y Y축 오프셋
@@ -288,13 +277,8 @@ export class CameraModel {
     } else if (this.tangentPlaneEnabled) {
       // 접평면 모드: 구 표면에 접하는 평면과 나란한 평면 위에 카메라 배치
 
-      // 구의 중심 가져오기 (SphereMesh가 있으면 그 위치 사용, 없으면 원점 사용)
-      const sphereCenter =
-        this.sphereMesh && this.sphereMesh.getWorldPosition
-          ? new THREE.Vector3().setFromMatrixPosition(
-              this.sphereMesh.matrixWorld
-            )
-          : new THREE.Vector3(0, 0, 0);
+      // 구의 중심은 원점으로 가정
+      const sphereCenter = new THREE.Vector3(0, 0, 0);
 
       // 타겟에서 구 중심으로의 방향 벡터 (구의 법선 벡터)
       const normal = targetPosition.clone().sub(sphereCenter).normalize();
@@ -390,16 +374,6 @@ export class CameraModel {
   public toggleFirstPerson(isFirstPerson: boolean): void {
     this.isFirstPerson = isFirstPerson;
     this.updateCameraPosition();
-
-    // 3인칭으로 전환 시 SphereMesh에 카메라 방향 변경 알림
-    if (
-      !isFirstPerson &&
-      this.sphereMesh &&
-      typeof this.sphereMesh.onCameraDirectionChange === "function"
-    ) {
-      const cameraDirection = this.getViewVector();
-      this.sphereMesh.onCameraDirectionChange(cameraDirection);
-    }
   }
 
   /**
@@ -485,30 +459,14 @@ export class CameraModel {
         this.camera.rotation.y = this.headRotationY;
       }
     } else {
-      // 3인칭 시점에서는 카메라 각도 변경 대신 구를 회전
-      // X축 이동(좌우 이동)은 구의 Y축 회전으로 처리
-      if (this.sphereMesh && typeof this.sphereMesh.rotateByY === "function") {
-        // 마우스 X축 이동에 따라 구를 Y축 기준으로 회전
-        this.sphereMesh.rotateByY(deltaMove.x * 0.01);
-      } else {
-        // SphereMesh가 없거나 rotateByY 메서드가 없는 경우 기존 방식으로 카메라 회전
-        this.rotationAngle -= deltaMove.x * 0.01;
-      }
+      // 카메라 회전 처리
+      this.rotationAngle -= deltaMove.x * 0.01;
 
       // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
       const newOffsetY = this.offset.y - deltaMove.y * 0.05;
       this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 
       this.updateCameraPosition();
-
-      // SphereMesh에 카메라 방향 변경 알림
-      if (
-        this.sphereMesh &&
-        typeof this.sphereMesh.onCameraDirectionChange === "function"
-      ) {
-        const cameraDirection = this.getViewVector();
-        this.sphereMesh.onCameraDirectionChange(cameraDirection);
-      }
     }
 
     this.previousMousePosition = {
@@ -566,30 +524,14 @@ export class CameraModel {
       y: event.touches[0].clientY - this.previousMousePosition.y,
     };
 
-    // 3인칭 시점에서는 카메라 각도 변경 대신 구를 회전
-    // X축 이동(좌우 이동)은 구의 Y축 회전으로 처리
-    if (this.sphereMesh && typeof this.sphereMesh.rotateByY === "function") {
-      // 터치 X축 이동에 따라 구를 Y축 기준으로 회전
-      this.sphereMesh.rotateByY(deltaMove.x * 0.01);
-    } else {
-      // SphereMesh가 없거나 rotateByY 메서드가 없는 경우 기존 방식으로 카메라 회전
-      this.rotationAngle -= deltaMove.x * 0.01;
-    }
+    // 카메라 회전 처리
+    this.rotationAngle -= deltaMove.x * 0.01;
 
     // Y축 이동은 카메라 높이 조정 (제한 적용) - 구를 회전시키지 않음
     const newOffsetY = this.offset.y - deltaMove.y * 0.05;
     this.offset.y = Math.max(0.5, Math.min(10, newOffsetY));
 
     this.updateCameraPosition();
-
-    // SphereMesh에 카메라 방향 변경 알림
-    if (
-      this.sphereMesh &&
-      typeof this.sphereMesh.onCameraDirectionChange === "function"
-    ) {
-      const cameraDirection = this.getViewVector();
-      this.sphereMesh.onCameraDirectionChange(cameraDirection);
-    }
 
     this.previousMousePosition = {
       x: event.touches[0].clientX,

@@ -32,9 +32,6 @@ export class SphereMesh extends THREE.Object3D {
   // 연결된 HumanMesh 인스턴스
   private humanMesh: HumanMesh | null = null;
 
-  // 카메라 참조
-  private camera: THREE.Camera | null = null;
-
   // 키 입력 상태
   private keyState: {
     ArrowUp: boolean;
@@ -87,17 +84,13 @@ export class SphereMesh extends THREE.Object3D {
     this.humanMesh = human;
   }
 
-  /**
-   * 카메라 참조 설정
-   * @param camera Three.js 카메라 객체
-   */
-  setCamera(camera: THREE.Camera): void {
-    this.camera = camera;
-  }
-
   // 이벤트 핸들러 참조 저장
   private handleKeyDown: ((event: KeyboardEvent) => void) | null = null;
   private handleKeyUp: ((event: KeyboardEvent) => void) | null = null;
+
+  // 마우스 이벤트 핸들러 참조 저장
+  private handleMouseMove: ((event: MouseEvent) => void) | null = null;
+  private handleTouchMove: ((event: TouchEvent) => void) | null = null;
 
   /**
    * 키보드 이벤트 리스너 설정
@@ -129,13 +122,46 @@ export class SphereMesh extends THREE.Object3D {
       }
     };
 
+    // 마우스 이동 이벤트 핸들러
+    this.handleMouseMove = (event: MouseEvent) => {
+      // 마우스 왼쪽 버튼이 눌린 상태에서만 처리 (Alt 키가 눌리지 않은 상태)
+      if (event.buttons === 1 && !event.altKey) {
+        const deltaX = event.movementX || 0;
+        // X축 이동에 따라 구를 Y축 기준으로 회전
+        this.rotateByY(deltaX * 0.01);
+      }
+    };
+
+    // 터치 이동 이벤트 핸들러
+    this.handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 1) {
+        // 현재 터치 위치
+        const touch = event.touches[0];
+
+        // 이전 터치 위치가 있으면 델타 계산
+        if (this.previousTouchX !== null) {
+          const deltaX = touch.clientX - this.previousTouchX;
+          // X축 이동에 따라 구를 Y축 기준으로 회전
+          this.rotateByY(deltaX * 0.01);
+        }
+
+        // 현재 터치 위치 저장
+        this.previousTouchX = touch.clientX;
+      }
+    };
+
     // 이벤트 리스너 등록
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
+    window.addEventListener("mousemove", this.handleMouseMove);
+    window.addEventListener("touchmove", this.handleTouchMove);
   }
 
+  // 이전 터치 위치 저장
+  private previousTouchX: number | null = null;
+
   /**
-   * 키보드 이벤트 리스너 제거
+   * 키보드 및 마우스 이벤트 리스너 제거
    */
   private removeKeyboardEvents(): void {
     if (this.handleKeyDown) {
@@ -145,6 +171,14 @@ export class SphereMesh extends THREE.Object3D {
     if (this.handleKeyUp) {
       window.removeEventListener("keyup", this.handleKeyUp);
       this.handleKeyUp = null;
+    }
+    if (this.handleMouseMove) {
+      window.removeEventListener("mousemove", this.handleMouseMove);
+      this.handleMouseMove = null;
+    }
+    if (this.handleTouchMove) {
+      window.removeEventListener("touchmove", this.handleTouchMove);
+      this.handleTouchMove = null;
     }
   }
 
@@ -332,32 +366,6 @@ export class SphereMesh extends THREE.Object3D {
    */
   getRadius(): number {
     return this.radius;
-  }
-
-  /**
-   * 카메라 방향 변경 시 호출되는 메서드
-   * SphereMesh를 회전시켜 HumanMesh가 카메라 방향을 바라보는 것처럼 보이게 함
-   * @param newDirection 새로운 카메라 방향 벡터
-   */
-  onCameraDirectionChange(newDirection: THREE.Vector3): void {
-    if (!this.humanMesh) return;
-
-    // 현재 SphereMesh의 회전과 새 카메라 방향 사이의 각도 계산
-    // 카메라가 바라보는 방향의 반대 방향으로 SphereMesh를 회전
-
-    // 카메라 방향 벡터를 XZ 평면에 투영 (Y 성분 제거)
-    const directionXZ = new THREE.Vector3(
-      newDirection.x,
-      0,
-      newDirection.z
-    ).normalize();
-
-    // Y축 회전 각도 계산 (XZ 평면에서의 각도)
-    const angleY = Math.atan2(directionXZ.x, directionXZ.z);
-
-    // SphereMesh 회전 (Y축 중심으로 회전)
-    // 현재 회전을 리셋하고 새 각도로 설정
-    this.rotation.y = angleY;
   }
 
   /**

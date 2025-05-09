@@ -183,12 +183,6 @@ const App: React.FC = () => {
     // 카메라가 HumanMesh를 바라보도록 설정
     cameraModel.setTarget(human);
 
-    // SphereMesh에 카메라 참조 설정 (카메라 방향을 고려한 회전을 위해)
-    sphere.setCamera(camera);
-
-    // CameraModel에 SphereMesh 참조 설정 (카메라 회전 시 SphereMesh 회전을 위해)
-    cameraModel.setSphere(sphere);
-
     // 카메라 위치 및 오프셋 설정 (HumanMesh를 잘 볼 수 있는 위치)
     cameraModel.setOffset(0, 10, 30);
     // 1인칭 시점에서 카메라를 머리 위치로 설정 (HumanMesh의 머리는 y = 0.85에 위치)
