@@ -1,28 +1,24 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import { describe, test, expect, vi } from "vitest";
 import App from "./App";
 
-// ThreeScene 컴포넌트를 모의(mock)하여 테스트를 단순화합니다.
-jest.mock("./components/ThreeScene", () => () => (
-  <div data-testid="three-scene" />
-));
+// Home은 마운트 시 WebGL 컨텍스트를 생성하므로 jsdom 환경에서는 모의 처리합니다.
+vi.mock("@pages/Home", () => ({
+  default: () => <div data-testid="home-page" />,
+}));
+
+vi.mock("@pages/Modeling", () => ({
+  default: () => <div data-testid="modeling-page" />,
+}));
 
 describe("App 컴포넌트", () => {
-  test("헤더가 렌더링되는지 확인", () => {
+  test("기본 경로('/')에서 Home 페이지가 렌더링된다", () => {
     render(<App />);
-    const headerElement = screen.getByText(/React Three.js 포트폴리오/i);
-    expect(headerElement).toBeInTheDocument();
+    expect(screen.getByTestId("home-page")).toBeInTheDocument();
   });
 
-  test("3D 렌더링 예제 섹션이 존재하는지 확인", () => {
+  test("기본 경로에서 Modeling 페이지는 렌더링되지 않는다", () => {
     render(<App />);
-    const sectionTitle = screen.getByText(/3D 렌더링 예제/i);
-    expect(sectionTitle).toBeInTheDocument();
-  });
-
-  test("ThreeScene 컴포넌트가 렌더링되는지 확인", () => {
-    render(<App />);
-    const threeSceneElement = screen.getByTestId("three-scene");
-    expect(threeSceneElement).toBeInTheDocument();
+    expect(screen.queryByTestId("modeling-page")).not.toBeInTheDocument();
   });
 });
