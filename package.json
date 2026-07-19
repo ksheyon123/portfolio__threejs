@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch"
+    "type-check:watch": "tsc --noEmit --watch",
+    "prepare": "node scripts/setup-githooks.mjs"
   },
   "keywords": [],
   "author": "",
