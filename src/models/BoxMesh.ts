@@ -157,9 +157,11 @@ export class BoxMesh extends THREE.Object3D {
    * @param color 새 색상
    */
   setColor(color: THREE.ColorRepresentation): void {
-    (this.box.material as THREE.MeshPhongMaterial).color = new THREE.Color(
-      color
-    );
+    // 이미 같은 색이면 아무것도 하지 않는다(매 프레임 호출되므로 불필요한 Color 생성을 막는다).
+    const material = this.box.material as THREE.MeshPhongMaterial;
+    const next = new THREE.Color(color);
+    if (material.color.equals(next)) return;
+    material.color = next;
   }
 
   /**

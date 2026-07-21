@@ -148,35 +148,12 @@ export class TreasureChestMesh extends THREE.Object3D {
    * @returns 충돌 여부
    */
   checkRightArmCollision(human: HumanMesh): boolean {
-    // HumanMesh 클래스에서 rightArmPivot은 Object3D이고, 그 자식으로 rightArm이 있음
-    // 직접 내부 구조에 접근하여 오른팔 메시 가져오기
-    let rightArm: THREE.Object3D | null = null;
-
-    // 모든 자식 객체 탐색
-    human.traverse((child) => {
-      // rightArmPivot 찾기
-      if (
-        child.name === "rightArmPivot" ||
-        (child instanceof THREE.Object3D &&
-          child.position.x > 0 && // 오른쪽에 위치
-          Math.abs(child.position.y - 0.6) < 0.1)
-      ) {
-        // y 위치가 약 0.6
-
-        // rightArmPivot의 자식들 중 rightArm 찾기
-        if (child.children.length > 0) {
-          // 첫 번째 자식이 rightArm
-          rightArm = child.children[0];
-        }
-      }
-    });
-
-    if (!rightArm) {
-      return false;
-    }
+    // HumanMesh가 생성 시점에 잡아둔 오른팔 참조를 그대로 사용한다.
+    // (과거엔 매 프레임 human.traverse()로 오른팔을 이름/좌표 휴리스틱으로 찾았으나,
+    //  참조가 이미 있으므로 순회는 불필요한 비용이었다.)
+    const rightArm = human.getRightArm();
 
     // 오른팔의 바운딩 박스 계산
-    // rightArm은 이미 THREE.Object3D 타입으로 확인됨
     const rightArmBounds = new THREE.Box3().setFromObject(rightArm);
 
     // 상자의 바운딩 박스 계산
@@ -198,7 +175,6 @@ export class TreasureChestMesh extends THREE.Object3D {
     // 충돌 시 상자 열기 (한 번 열리면 계속 열린 상태 유지)
     if (collision && !this.isOpen) {
       this.startOpenAnimation(time);
-      console.log("보물 상자가 열렸습니다!");
     }
 
     // 애니메이션 업데이트

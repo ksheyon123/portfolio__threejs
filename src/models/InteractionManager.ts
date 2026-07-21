@@ -60,6 +60,9 @@ export class InteractionManager {
   // 충돌 상태
   private isColliding = false;
 
+  // 레이캐스터 재사용 (매 프레임·매 체크포인트마다 새로 만들지 않는다)
+  private raycaster = new THREE.Raycaster();
+
   /**
    * 레이캐스팅을 사용한 충돌 예측
    * @param origin 레이캐스트 시작 위치
@@ -74,13 +77,11 @@ export class InteractionManager {
     objects: THREE.Object3D[],
     minDistance: number = COLLISION_SETTINGS.MIN_DISTANCE
   ): CollisionPrediction {
-    // 레이캐스터 생성
-    const raycaster = new THREE.Raycaster(
-      origin,
-      direction.normalize(),
-      0, // 시작 거리
-      COLLISION_SETTINGS.MAX_RAYCAST_DISTANCE // 최대 검사 거리
-    );
+    // 재사용 레이캐스터 설정 (매번 new 하지 않는다)
+    const raycaster = this.raycaster;
+    raycaster.set(origin, direction.normalize());
+    raycaster.near = 0; // 시작 거리
+    raycaster.far = COLLISION_SETTINGS.MAX_RAYCAST_DISTANCE; // 최대 검사 거리
 
     // 레이캐스팅 수행
     const intersects = raycaster.intersectObjects(objects, true);
@@ -111,7 +112,7 @@ export class InteractionManager {
    * @returns 예측 결과 객체 {willCollide: boolean, distance: number}
    */
   predictMovementCollision(
-    human: HumanMesh,
+    humanBounds: THREE.Box3,
     moveDirection: THREE.Vector3,
     boxes: BoxMesh[],
     treasureChests?: TreasureChestMesh[]
@@ -127,8 +128,7 @@ export class InteractionManager {
       objects.push(...treasureChests);
     }
 
-    // 사람의 바운딩 박스 계산
-    const humanBounds = this.calculateHumanBounds(human);
+    // 사람의 바운딩 박스는 호출부(update)에서 이미 계산해 전달받는다(중복 setFromObject 제거).
 
     // 바운딩 박스의 크기와 중심점 계산
     const humanSize = new THREE.Vector3();
@@ -248,7 +248,7 @@ export class InteractionManager {
 
     // 이동 방향이 제공된 경우 충돌 예측 수행
     this.handleMovementPrediction(
-      human,
+      humanBounds,
       moveDirection,
       boxArray,
       sphere,
@@ -269,14 +269,14 @@ export class InteractionManager {
 
   /**
    * 이동 방향에 따른 충돌 예측 및 처리
-   * @param human HumanMesh 객체
+   * @param humanBounds 사람의 바운딩 박스 (update에서 계산해 전달)
    * @param moveDirection 이동 방향 벡터
    * @param boxes BoxMesh 객체 배열
    * @param sphere SphereMesh 객체
    * @param treasureChests TreasureChestMesh 객체 배열 (선택적)
    */
   private handleMovementPrediction(
-    human: HumanMesh,
+    humanBounds: THREE.Box3,
     moveDirection: THREE.Vector3 | undefined,
     boxes: BoxMesh[],
     sphere: SphereMesh,
@@ -284,14 +284,11 @@ export class InteractionManager {
   ): void {
     if (moveDirection && moveDirection.length() > 0) {
       const prediction = this.predictMovementCollision(
-        human,
+        humanBounds,
         moveDirection,
         boxes,
         treasureChests
       );
-
-      // 디버깅용 로그 - 충돌 예측 거리 출력
-      console.log("예측 충돌 거리:", prediction.distance);
 
       // 거리가 임계값 미만이면 이동 제한 신호 전달
       if (prediction.distance < this.proximityThresholds.close) {
@@ -346,13 +343,6 @@ export class InteractionManager {
     if (collision !== this.isColliding) {
       this.isColliding = collision;
       sphere.setCollisionState(collision);
-
-      // 충돌 시 콘솔에 로그 출력 (디버깅용)
-      if (collision) {
-        console.log("충돌 발생: HumanMesh가 다른 객체와 충돌했습니다.");
-      } else {
-        console.log("충돌 해제: HumanMesh의 충돌이 해제되었습니다.");
-      }
     }
   }
 

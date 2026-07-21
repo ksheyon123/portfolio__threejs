@@ -391,6 +391,15 @@ export class HumanMesh extends THREE.Object3D {
   }
 
   /**
+   * 오른팔 메시 반환 (충돌 검사용)
+   * 생성 시점에 이미 참조를 갖고 있으므로, 매 프레임 traverse로 찾을 필요가 없다.
+   * @returns 오른팔 메시
+   */
+  getRightArm(): THREE.Mesh {
+    return this.rightArm;
+  }
+
+  /**
    * 현재 포즈 타입에 따라 애니메이션 업데이트
    * @param time 시간 값 (애니메이션 진행 정도)
    */
