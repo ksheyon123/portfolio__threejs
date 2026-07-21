@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { triangulate } from "@libs/delaunay";
 
 /** 평면 위 2D 정점. z는 항상 0으로 취급한다. */
 export interface Vertex2D {
@@ -11,18 +12,21 @@ export interface Vertex2D {
  *
  * `z=0` 평면 위 임의의 2D 정점 목록을 받아, `BufferGeometry`의 아래 세 버퍼를 손으로 채운다:
  *   - position: 각 정점 (x, y, 0)
- *   - index   : 팬(fan) 삼각분할 — 정점 0을 축으로 [0, i, i+1] (i = 1 … N-2)
- *   - normal  : computeVertexNormals()로 계산 (CCW 볼록 다각형이면 +z)
+ *   - index   : 들로네 삼각분할(@libs/delaunay) — 겹침·구멍 없이 볼록 껍질 영역을 채움
+ *   - normal  : computeVertexNormals()로 계산 (삼각형이 CCW라 +z)
  *
  * 완성된 지오메트리(BoxGeometry 등)를 쓰는 다른 데모와 달리, 여기선 그 지오메트리의
  * 바닥에 있는 정점·인덱스 버퍼 자체를 구성하는 것이 핵심이다.
  *
- * 팬 삼각분할은 **볼록 다각형 전제**다. 오목 좌표를 주면 삼각형이 다각형 밖으로
- * 삐져나온다(오목 지원은 ear-clipping 필요 — 향후 리비전).
+ * 들로네라 점을 어디에·어떤 순서로 주든 면이 겹치지 않는다(내부 점은 삼각형을 쪼갠다).
+ * 다만 볼록 껍질 영역만 채우므로 오목 경계는 표현 못 한다(향후 constrained triangulation).
  */
 export class FaceMesh extends THREE.Mesh {
   // 정점 목록(원재료). 이 배열이 곧 진실이고, geometry는 여기서 파생된다.
   private vertices: Vertex2D[];
+
+  // 마지막 삼각분할 결과(flat 인덱스 [a,b,c,…]). rebuild()에서 갱신, 에지 계산에 재사용.
+  private triangles: number[] = [];
 
   constructor(
     initialVertices: Vertex2D[] = [],
@@ -46,7 +50,7 @@ export class FaceMesh extends THREE.Mesh {
 
   /**
    * 현재 정점 목록으로 position·index·normal 버퍼를 다시 만든다.
-   * 정점 수가 바뀌는 편집(add/remove/reset) 뒤엔 반드시 호출한다.
+   * 들로네는 정점 위치가 바뀌어도 연결이 달라질 수 있어, 위치 편집(move) 뒤에도 호출한다.
    */
   private rebuild(): void {
     const n = this.vertices.length;
@@ -63,18 +67,13 @@ export class FaceMesh extends THREE.Mesh {
       new THREE.Float32BufferAttribute(positions, 3),
     );
 
-    // index: 팬 삼각분할. 정점 3개 미만이면 면이 성립하지 않으므로 index 제거.
-    if (n >= 3) {
-      const indices: number[] = [];
-      for (let i = 1; i <= n - 2; i++) {
-        indices.push(0, i, i + 1);
-      }
-      this.geometry.setIndex(indices);
-    } else {
-      this.geometry.setIndex(null);
-    }
+    // index: 들로네 삼각분할. 점 3개 미만/공선이면 면이 없어 빈 결과 → index 제거.
+    this.triangles = triangulate(this.vertices);
+    this.geometry.setIndex(
+      this.triangles.length > 0 ? this.triangles : null,
+    );
 
-    // 법선 — 조명(MeshStandardMaterial) 대응. 평면이므로 CCW면 +z.
+    // 법선 — 조명(MeshStandardMaterial) 대응. 삼각형이 CCW라 +z.
     this.geometry.computeVertexNormals();
     this.geometry.attributes.position.needsUpdate = true;
   }
@@ -90,15 +89,12 @@ export class FaceMesh extends THREE.Mesh {
   }
 
   /**
-   * 팬 삼각분할의 각 삼각형 3변을, 중복 제거한 무방향 정점 인덱스 쌍으로 반환한다.
-   * 페이지가 이 에지로 LineSegments를 그려 내부 대각선까지 보이게 한다.
+   * 현재 삼각분할의 각 삼각형 3변을, 중복 제거한 무방향 정점 인덱스 쌍으로 반환한다.
+   * 페이지가 이 에지로 LineSegments를 그려 외곽선뿐 아니라 내부 변까지 보이게 한다.
    * (평면 다각형은 모든 삼각형이 코플래너라 EdgesGeometry로는 내부 변이 사라진다.)
-   * 정점 3개 미만이면 면이 없으므로 빈 배열. 외곽 N변 + 내부 대각선 N-3 = 2N-3개.
+   * 삼각형이 없으면(점 3개 미만/공선) 빈 배열.
    */
   getTriangleEdges(): [number, number][] {
-    const n = this.vertices.length;
-    if (n < 3) return [];
-
     const seen = new Set<string>();
     const edges: [number, number][] = [];
     const addEdge = (a: number, b: number) => {
@@ -108,11 +104,14 @@ export class FaceMesh extends THREE.Mesh {
       edges.push([a, b]);
     };
 
-    // 팬 삼각형 [0, i, i+1]의 세 변을 모은다(공유 변은 중복 제거됨).
-    for (let i = 1; i <= n - 2; i++) {
-      addEdge(0, i);
-      addEdge(i, i + 1);
-      addEdge(i + 1, 0);
+    // 삼각분할 결과의 각 삼각형 세 변(공유 변은 중복 제거됨).
+    for (let i = 0; i < this.triangles.length; i += 3) {
+      const a = this.triangles[i];
+      const b = this.triangles[i + 1];
+      const c = this.triangles[i + 2];
+      addEdge(a, b);
+      addEdge(b, c);
+      addEdge(c, a);
     }
     return edges;
   }
@@ -125,17 +124,14 @@ export class FaceMesh extends THREE.Mesh {
 
   /**
    * i번째 정점 좌표를 옮긴다.
-   * 정점 수가 그대로라 index는 유지되지만, 형상이 바뀌었으므로 법선은 다시 계산한다.
+   * 들로네는 위치가 바뀌면 삼각분할 연결도 달라질 수 있으므로 전체 재빌드한다
+   * (팬 때처럼 index를 그대로 두면 드래그 중 면이 겹칠 수 있다).
    */
   moveVertex(i: number, x: number, y: number): void {
     if (i < 0 || i >= this.vertices.length) return;
     this.vertices[i].x = x;
     this.vertices[i].y = y;
-
-    const pos = this.geometry.attributes.position as THREE.BufferAttribute;
-    pos.setXYZ(i, x, y, 0);
-    pos.needsUpdate = true;
-    this.geometry.computeVertexNormals();
+    this.rebuild();
   }
 
   /** i번째 정점을 제거하고 면을 다시 만든다. */

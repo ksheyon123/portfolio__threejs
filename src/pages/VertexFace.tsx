@@ -282,7 +282,7 @@ const VertexFace: React.FC = () => {
 
       {/* 안내 */}
       <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-black/50 text-white/80 rounded-lg px-4 py-2 text-xs backdrop-blur">
-        빈 곳을 클릭해 정점을 추가하고, 노란 점을 드래그해 옮기세요. 정점을 순서대로 이어 면을 만듭니다.
+        빈 곳을 클릭해 정점을 추가하고, 노란 점을 드래그해 옮기세요. 들로네 삼각분할이라 안쪽에 찍어도 면이 겹치지 않고 삼각형이 쪼개집니다.
       </div>
     </>
   );
