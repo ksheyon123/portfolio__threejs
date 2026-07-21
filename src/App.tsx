@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Home from "@pages/Home";
 import Modeling from "@pages/Modeling";
 import Rigging from "@pages/Rigging";
+import VertexFace from "@pages/VertexFace";
 
 const App: React.FC = () => {
   return (
@@ -13,6 +14,7 @@ const App: React.FC = () => {
         <Route path="/home" element={<Home />} />
         <Route path="/modeling" element={<Modeling />} />
         <Route path="/rigging" element={<Rigging />} />
+        <Route path="/vertex-face" element={<VertexFace />} />
       </Routes>
     </Router>
   );
