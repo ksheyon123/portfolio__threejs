@@ -9,7 +9,8 @@ import { FaceMesh } from "@models/FaceMesh";
  *   - 빈 곳 클릭 → 정점 추가 (3개부터 팬 삼각분할로 면이 채워진다)
  *   - 정점(노란 점) 드래그 → 정점 이동, 면 실시간 갱신
  *   - reset → 모두 지우기
- * 외곽선(LineLoop)과 정점 점(Points)으로 "정점을 잇는다"를 드러낸다.
+ * 삼각형 에지(LineSegments)와 정점 점(Points)으로 삼각분할 구조를 드러낸다.
+ * (클릭 순서 외곽선은 들로네에서 자기교차하므로 쓰지 않는다.)
  */
 const VertexFace: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -68,27 +69,19 @@ const VertexFace: React.FC = () => {
     scene.add(face);
     faceRef.current = face;
 
-    // 외곽선(LineLoop) — 정점을 순서대로 잇는 선
-    const lineGeom = new THREE.BufferGeometry();
-    const line = new THREE.LineLoop(
-      lineGeom,
-      new THREE.LineBasicMaterial({ color: 0x88ccff }),
-    );
-    line.position.z = 0.01; // 면 위에 살짝 띄워 z-fighting 방지
-    scene.add(line);
-
-    // 삼각형 에지(팬 삼각분할) — 외곽선뿐 아니라 정점 0에서 뻗는 내부 대각선까지
-    // 그려 각 삼각형이 눈에 보이게 한다. (코플래너라 EdgesGeometry 대신 직접 그림)
+    // 삼각형 에지(들로네) — 바깥 경계(볼록 껍질 변)와 내부 변을 모두 그려 각 삼각형을
+    // 드러낸다. (코플래너라 EdgesGeometry 대신 직접 그림.) 클릭 순서대로 잇는
+    // 외곽선(LineLoop)은 들로네에서 자기교차하므로 쓰지 않는다 — 경계는 이 에지가 겸한다.
     const triGeom = new THREE.BufferGeometry();
     const triEdges = new THREE.LineSegments(
       triGeom,
       new THREE.LineBasicMaterial({
-        color: 0xffffff,
+        color: 0x88ccff,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.55,
       }),
     );
-    triEdges.position.z = 0.005; // 면 위, 외곽선(LineLoop) 아래
+    triEdges.position.z = 0.005; // 면 위에 살짝 띄워 z-fighting 방지
     scene.add(triEdges);
 
     // 정점 마커(Points)
@@ -100,7 +93,7 @@ const VertexFace: React.FC = () => {
     points.position.z = 0.02;
     scene.add(points);
 
-    // 정점 목록 → 외곽선/점 지오메트리 동기화
+    // 정점 목록 → 점/삼각형 에지 지오메트리 동기화
     const syncHelpers = () => {
       const verts = face.getVertices();
       const arr = new Float32Array(verts.length * 3);
@@ -109,9 +102,7 @@ const VertexFace: React.FC = () => {
         arr[i * 3 + 1] = v.y;
         arr[i * 3 + 2] = 0;
       });
-      lineGeom.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
-      pointGeom.setAttribute("position", new THREE.Float32BufferAttribute(arr.slice(), 3));
-      lineGeom.computeBoundingSphere();
+      pointGeom.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
       pointGeom.computeBoundingSphere();
 
       // 삼각형 에지 — getTriangleEdges()의 인덱스 쌍마다 선분 하나
@@ -238,8 +229,6 @@ const VertexFace: React.FC = () => {
       dom.removeEventListener("pointerdown", onPointerDown);
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerup", onPointerUp);
-      lineGeom.dispose();
-      (line.material as THREE.Material).dispose();
       triGeom.dispose();
       (triEdges.material as THREE.Material).dispose();
       pointGeom.dispose();
