@@ -1,7 +1,8 @@
 {
   "tasks": {
     "feat/rigging-skeletal": "harness/rigging-skeletal/spec.md",
-    "feat/vertex-face": "harness/vertex-face/spec.md"
+    "feat/vertex-face": "harness/vertex-face/spec.md",
+    "feat/vertex-face-3d": "harness/vertex-face-3d/spec.md"
   },
   "components": {}
 }
