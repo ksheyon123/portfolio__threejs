@@ -89,6 +89,34 @@ export class FaceMesh extends THREE.Mesh {
     return this.vertices.length;
   }
 
+  /**
+   * 팬 삼각분할의 각 삼각형 3변을, 중복 제거한 무방향 정점 인덱스 쌍으로 반환한다.
+   * 페이지가 이 에지로 LineSegments를 그려 내부 대각선까지 보이게 한다.
+   * (평면 다각형은 모든 삼각형이 코플래너라 EdgesGeometry로는 내부 변이 사라진다.)
+   * 정점 3개 미만이면 면이 없으므로 빈 배열. 외곽 N변 + 내부 대각선 N-3 = 2N-3개.
+   */
+  getTriangleEdges(): [number, number][] {
+    const n = this.vertices.length;
+    if (n < 3) return [];
+
+    const seen = new Set<string>();
+    const edges: [number, number][] = [];
+    const addEdge = (a: number, b: number) => {
+      const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      edges.push([a, b]);
+    };
+
+    // 팬 삼각형 [0, i, i+1]의 세 변을 모은다(공유 변은 중복 제거됨).
+    for (let i = 1; i <= n - 2; i++) {
+      addEdge(0, i);
+      addEdge(i, i + 1);
+      addEdge(i + 1, 0);
+    }
+    return edges;
+  }
+
   /** 정점을 목록 끝에 추가하고 면을 다시 만든다. */
   addVertex(x: number, y: number): void {
     this.vertices.push({ x, y });

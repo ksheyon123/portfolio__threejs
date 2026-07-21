@@ -77,6 +77,20 @@ const VertexFace: React.FC = () => {
     line.position.z = 0.01; // 면 위에 살짝 띄워 z-fighting 방지
     scene.add(line);
 
+    // 삼각형 에지(팬 삼각분할) — 외곽선뿐 아니라 정점 0에서 뻗는 내부 대각선까지
+    // 그려 각 삼각형이 눈에 보이게 한다. (코플래너라 EdgesGeometry 대신 직접 그림)
+    const triGeom = new THREE.BufferGeometry();
+    const triEdges = new THREE.LineSegments(
+      triGeom,
+      new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.4,
+      }),
+    );
+    triEdges.position.z = 0.005; // 면 위, 외곽선(LineLoop) 아래
+    scene.add(triEdges);
+
     // 정점 마커(Points)
     const pointGeom = new THREE.BufferGeometry();
     const points = new THREE.Points(
@@ -99,6 +113,22 @@ const VertexFace: React.FC = () => {
       pointGeom.setAttribute("position", new THREE.Float32BufferAttribute(arr.slice(), 3));
       lineGeom.computeBoundingSphere();
       pointGeom.computeBoundingSphere();
+
+      // 삼각형 에지 — getTriangleEdges()의 인덱스 쌍마다 선분 하나
+      const edges = face.getTriangleEdges();
+      const edgeArr = new Float32Array(edges.length * 2 * 3);
+      edges.forEach(([a, b], k) => {
+        const base = k * 6;
+        edgeArr[base] = verts[a].x;
+        edgeArr[base + 1] = verts[a].y;
+        edgeArr[base + 2] = 0;
+        edgeArr[base + 3] = verts[b].x;
+        edgeArr[base + 4] = verts[b].y;
+        edgeArr[base + 5] = 0;
+      });
+      triGeom.setAttribute("position", new THREE.Float32BufferAttribute(edgeArr, 3));
+      triGeom.computeBoundingSphere();
+
       setCount(verts.length);
     };
     syncHelpers();
@@ -210,6 +240,8 @@ const VertexFace: React.FC = () => {
       dom.removeEventListener("pointerup", onPointerUp);
       lineGeom.dispose();
       (line.material as THREE.Material).dispose();
+      triGeom.dispose();
+      (triEdges.material as THREE.Material).dispose();
       pointGeom.dispose();
       (points.material as THREE.Material).dispose();
       face.dispose();

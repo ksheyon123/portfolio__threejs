@@ -74,6 +74,55 @@ describe("FaceMesh — 정점으로 면 만들기 (2D 팬 삼각분할)", () => 
     });
   });
 
+  describe("삼각형 에지 시각화 (getTriangleEdges)", () => {
+    // 무방향 에지를 정렬해 비교하기 쉬운 문자열 키로.
+    const key = (e: [number, number]) =>
+      e[0] < e[1] ? `${e[0]}_${e[1]}` : `${e[1]}_${e[0]}`;
+
+    test("N<3이면 빈 배열", () => {
+      expect(new FaceMesh(SQUARE.slice(0, 2)).getTriangleEdges()).toEqual([]);
+      expect(new FaceMesh([]).getTriangleEdges()).toEqual([]);
+    });
+
+    test("삼각형(N=3)은 변 3개, 중복 없음", () => {
+      const edges = new FaceMesh(SQUARE.slice(0, 3)).getTriangleEdges();
+      expect(edges.length).toBe(3);
+      const keys = new Set(edges.map(key));
+      expect(keys.size).toBe(3); // 중복 없음
+      expect(keys).toEqual(new Set(["0_1", "1_2", "0_2"]));
+    });
+
+    test("에지 개수는 2N-3이다", () => {
+      for (let n = 3; n <= 6; n++) {
+        const m = new FaceMesh(
+          Array.from({ length: n }, (_, i) => ({ x: i, y: i % 2 })),
+        );
+        expect(m.getTriangleEdges().length).toBe(2 * n - 3);
+      }
+    });
+
+    test("N=4는 내부 대각선 (0,2)를 포함한다", () => {
+      const edges = new FaceMesh(SQUARE).getTriangleEdges();
+      const keys = new Set(edges.map(key));
+      expect(keys.has("0_2")).toBe(true); // 팬 대각선
+      // 외곽 4변 + 내부 대각선 1 = 5
+      expect(keys).toEqual(new Set(["0_1", "1_2", "0_2", "2_3", "0_3"]));
+    });
+
+    test("반환된 모든 에지는 무방향 중복이 없다", () => {
+      const edges = new FaceMesh(SQUARE).getTriangleEdges();
+      const keys = edges.map(key);
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    test("정점을 추가하면 에지도 재계산된다", () => {
+      const m = new FaceMesh(SQUARE.slice(0, 3));
+      expect(m.getTriangleEdges().length).toBe(3);
+      m.addVertex(0, 2);
+      expect(m.getTriangleEdges().length).toBe(2 * 4 - 3);
+    });
+  });
+
   describe("정점 편집 (add / move / remove / reset)", () => {
     test("addVertex는 position.count를 1 늘리고 index를 재계산한다", () => {
       const m = new FaceMesh(SQUARE.slice(0, 3)); // 삼각형 1개

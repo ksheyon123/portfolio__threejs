@@ -1,5 +1,5 @@
 ---
-input_hash: 26ddf5b7a8a9740fc32e5e4a1f4d4710bc6ef2ed3d0d5ae4db15ea3ef6d25b50
+input_hash: e1fa09f8b55b1500e70d16ba049951607c43f29eddbfb0d9a5864b7377481bd9
 generated: 2026-07-21
 spec: harness/vertex-face/spec.md
 ---
@@ -23,6 +23,10 @@ spec: harness/vertex-face/spec.md
 - `removeVertex(i)`: position.count −1, 뒤 정점이 당겨짐
 - `reset`: position.count 0, index null, 내부 목록 비움
 - `getVertices`: 내부 상태 방어적 복사본 반환
+- **[리비전] `getTriangleEdges()`: 팬 삼각분할의 모든 삼각형 변을 무방향·중복 제거해 `[a,b][]`로 반환**
+- **[리비전] 에지 개수 = `2N-3` (외곽 N변 + 내부 대각선 N-3)**
+- **[리비전] N=4는 내부 대각선 `(0,2)`를 포함**
+- **[리비전] N<3이면 빈 배열, 무방향 중복 없음, 정점 수 변경 시 재계산**
 - (자원 정리) `dispose`가 geometry/material 해제
 
 렌더링·상호작용(테스트 불가 — 육안 확인):
@@ -30,6 +34,7 @@ spec: harness/vertex-face/spec.md
 - 빈 곳 클릭 → 정점 추가, 3개부터 면이 채워짐
 - 노란 점 드래그 → 정점 이동, 면 실시간 갱신
 - 외곽선(LineLoop)·정점 점(Points)·반투명 면 시각화
+- **[리비전] 삼각형 에지 `LineSegments`가 면 위에 얹혀 내부 대각선까지 화면에 보임**
 - 정투영(OrthographicCamera) top-down 2D 뷰
 - reset 버튼 · 정점 수 표시
 - 오목 다각형에서 팬 삼각형이 면 밖으로 삐져나오는지(향후 ear-clipping)
@@ -54,6 +59,13 @@ spec: harness/vertex-face/spec.md
 | removeVertex: count−1 & 당김 | `FaceMesh.test.ts > "removeVertex는 position.count를 1 줄인다"` | ✅ covered | — |
 | reset: count 0 & index null & 목록 비움 | `FaceMesh.test.ts > "reset은 정점을 모두 비운다"` | ✅ covered | — |
 | getVertices 방어적 복사 | `FaceMesh.test.ts > "getVertices는 현재 정점 목록의 복사본을 돌려준다"` | ✅ covered | — |
+| **[리비전] getTriangleEdges N<3 → 빈 배열** | `FaceMesh.test.ts > "N<3이면 빈 배열"` | ✅ covered | — |
+| **[리비전] N=3 → 변 3개, 무방향 중복 없음** | `FaceMesh.test.ts > "삼각형(N=3)은 변 3개, 중복 없음"` | ✅ covered | — |
+| **[리비전] 에지 개수 = 2N-3 (N=3..6)** | `FaceMesh.test.ts > "에지 개수는 2N-3이다"` | ✅ covered | — |
+| **[리비전] N=4 내부 대각선 (0,2) 포함** | `FaceMesh.test.ts > "N=4는 내부 대각선 (0,2)를 포함한다"` | ✅ covered | — |
+| **[리비전] 반환 에지 무방향 중복 없음** | `FaceMesh.test.ts > "반환된 모든 에지는 무방향 중복이 없다"` | ✅ covered | — |
+| **[리비전] 정점 추가 시 에지 재계산** | `FaceMesh.test.ts > "정점을 추가하면 에지도 재계산된다"` | ✅ covered | — |
+| **[리비전] 삼각형 에지 LineSegments 화면 표시(내부 대각선)** | (테스트 불가 — `VertexFace.tsx`에 `getTriangleEdges()`→`LineSegments` 배선 확인됨) | — 육안 확인 | 요검토 |
 | 생성자 initialVertices 방어적 복사 | (전용 테스트 없음 — `getVertices` 복사만 검증) | △ partial | 요검토(경미) |
 | dispose 자원 해제 | (없음) | ❌ 누락 (테스트 가능하나 미검증) | 요검토(경미) |
 | `/vertex-face` 라우트 등록 | (테스트 없음 — `App.tsx`에 정적 등록 확인됨) | △ 정적 확인 | — |
@@ -65,10 +77,11 @@ spec: harness/vertex-face/spec.md
 
 ## 메모 (비차단 · 조언)
 
-- **순수 계산 커버리지는 강함**: spec의 4개 계산 기능(position / 팬 index / 법선 / add·move·remove·reset)의 핵심 인수기준이 모두 자동 테스트로 검증됨. `❌ 누락`은 없고 `△`만 소수.
+- **순수 계산 커버리지는 강함**: spec의 계산 기능(position / 팬 index / 법선 / add·move·remove·reset)의 핵심 인수기준이 모두 자동 테스트로 검증됨. `❌ 누락`은 dispose 1건뿐.
+- **[리비전] 삼각형 에지 시각화 — 순수 계산부는 완전 커버**: 신규 `getTriangleEdges()`의 인수기준 4개(에지 개수 `2N-3`, N=4 내부 대각선 `(0,2)`, 무방향 중복 제거, N<3 빈 배열)가 모두 전용 테스트로 검증됨. `2N-3`은 N=3..6 파라미터 스윕으로, 중복 제거는 무방향 키 Set 크기 단언으로 확인. 정점 추가 시 재계산도 테스트됨. 화면에 내부 대각선이 실제로 보이는지는 spec이 명시적으로 `[사람 확인 필요]` → `VertexFace.tsx`가 `getTriangleEdges()`로 `LineSegments`를 구성하는 배선은 코드상 확인됨(정적).
 - **경미한 갭 3건(모두 테스트 가능하지만 선택적)**:
-  1. `moveVertex` 후 법선 재계산이 실제로 반영됐는지(예: 정점을 뒤집어 z 부호 변화) 결과 단언이 없다. 현재는 위치 갱신만 단언.
+  1. `moveVertex` 후 법선 재계산이 실제 반영됐는지(예: 정점을 뒤집어 z 부호 변화) 결과 단언이 없다. 현재는 위치 갱신만 단언.
   2. 생성자에 넘긴 `initialVertices`의 방어적 복사(호출자 배열 변경이 내부에 안 새는지)는 `getVertices` 경로로만 간접 확인됨.
   3. `dispose()`가 geometry/material을 해제하는지 검증하는 테스트가 없다(스파이로 검증 가능).
-- **5번째 기능(페이지 상호작용)은 spec이 명시적으로 `[사람 확인 필요]`**로 표시 → WebGL 필요, jsdom 검증 불가. `npm run dev`로 `/vertex-face`에서 육안 확인 대상.
+- **페이지 상호작용(클릭/드래그/정투영)은 spec이 명시적으로 `[사람 확인 필요]`** → WebGL 필요, jsdom 검증 불가. `npm run dev`로 `/vertex-face`에서 육안 확인 대상.
 - `/vertex-face` 라우트는 `App.tsx`에 정적으로 등록되어 있음(자동 테스트는 없으나 코드상 확인됨).
