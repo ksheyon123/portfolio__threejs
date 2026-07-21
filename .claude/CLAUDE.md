@@ -17,7 +17,7 @@ UserPromptSubmit 로더가 현재 브랜치의 기능 목록(spec)을 컨텍스�
 - 자기 코드의 테스트는 개발자가 작성한다(Vitest).
 - 동작 변경은 각 기능의 **인수기준 범위 안에서만** 한다.
 - **문서 먼저(doc-before-code)**: 새 기능뿐 아니라 **리비전·후속 수정·하네스 자체 수정도** 코드보다 spec/문서를 먼저 확정한다(planner 또는 직접). (이미 있는 문서 문구를 다듬는 순수 편집은 예외.)
-- **워크플로/하네스 문제 지적 = 하네스를 고친다**: 사용자가 *일이 어떻게 진행되는가*(브랜치·세션·프로토콜·게이트)의 문제를 지적하며 구체 기능을 예로 들면, 그 **예시 기능을 구현하라는 게 아니라** 하네스(`.claude/CLAUDE.md`·`.claude/hooks/*`·`.githooks/*`)를 고치라는 뜻이다. 거명된 기능은 증상 예시로 본다.
+- **워크플로/하네스 문제 지적 = 하네스를 고친다**: 사용자가 *일이 어떻게 진행되는가*(브랜치·worktree·세션·프로토콜·게이트)의 문제를 지적하며 구체 기능을 예로 들면, 그 **예시 기능을 구현하라는 게 아니라** 하네스(`.claude/CLAUDE.md`·`.claude/hooks/*`·`scripts/*`·`.githooks/*`)를 고치라는 뜻이다. 거명된 기능은 증상 예시로 본다.
 - spec 전체 구현이 끝나면 다음을 순서대로 **자동** 수행한다: **① 객관 게이트(`tsc` + 테스트) → ② 통과 시 QA 체크리스트 생성 → ③ 자동 커밋 → ④ 작업 브랜치로 자동 push**(아래 각 절 참고). 그 뒤 변경 요약 + 게이트 결과 + QA 결과 + 커밋 해시 + push 결과를 한 번에 보고한다. **체크박스 확정·PR 리뷰·머지는 사람의 몫이다.**
 
 ### QA 체크리스트 생성 (게이트 통과 후 · 커밋 전)
@@ -31,7 +31,7 @@ UserPromptSubmit 로더가 현재 브랜치의 기능 목록(spec)을 컨텍스�
 - **커밋 조건**: `npm run type-check` + `npx vitest run`이 **전부 통과**할 때만 커밋한다. 하나라도 실패하면 커밋하지 않고 멈춰 보고한다.
 - **커밋 단위**: spec 1개당 1커밋(끝에서 한 번) — **코드 + 테스트 + `qa-checklist.md`를 한 커밋에 담는다**. 여러 spec을 한 세션에서 진행하면 spec마다 커밋한다.
 - **브랜치 안전**: `main`/`dev`에는 **직접 커밋하지 않는다**. 현재 브랜치가 `main`/`dev`면 멈추고 사용자에게 작업 브랜치 생성을 요청한다(`harness/index.json`에 매핑된 작업 브랜치에서만 커밋).
-- **분기 기준**: 작업 브랜치는 **`dev`에서 분기한다**(`main` 아님), 항상 최신 `dev` 기준. `main`은 릴리스용이다.
+- **분기 기준**: 작업 브랜치는 **`dev`에서 분기한다**(`main` 아님), 항상 최신 `dev` 기준. `main`은 릴리스용이다. **task 시작은 worktree 우선**: 메인 체크아웃에서 `git checkout -b` 하지 말고 `node scripts/worktree-add.mjs feat/<task> --launch` 로 worktree를 만들어 **그 디렉터리에서 새 세션을 연다**(`--launch` 가 install + 새 터미널 창에서 세션 자동 기동(macOS=Terminal.app, Windows=PowerShell), 실패/미지원 시 기동 명령 출력으로 폴백 — 아래 'worktree 동시작업 규약'). 새 세션은 `load-spec` 로더가 브랜치 기준으로 spec 을 자동 주입하므로 그 세션이 개발자로서 자율 구현한다. spec이 등록된 task의 제품 소스(`src/`)를 메인 체크아웃에서 편집하면 `verify-branch` 훅이 **`deny`로 차단**한다 — 메인에서는 진행 불가, **반드시 worktree에서** 한다(단일 작업이어도 예외 없음). 등록 전 ad-hoc 수정·`harness/`·`.claude/` 메타작업은 메인에서 가능.
 - **자동 push**: 커밋 후 **현재 작업 브랜치로 push 한다**(`git push -u origin <현재-브랜치>`). push 도중 pre-push 훅이 객관 게이트(tsc+vitest)를 재실행하고, 위에서 주입한 `input_hash`가 일치하면 QA를 스킵한다.
   - **push도 `main`/`dev`엔 절대 하지 않는다** — `harness/index.json`에 매핑된 작업 브랜치로만.
   - pre-push가 push를 거부하면(객관 게이트 실패, 또는 해시 불일치로 재생성된 QA 산출물이 미커밋) 멈추고 그 출력을 그대로 보고한다. 후자면 그 산출물을 커밋하고 다시 push 한다.
@@ -48,6 +48,29 @@ UserPromptSubmit 로더가 현재 브랜치의 기능 목록(spec)을 컨텍스�
 - 현재 브랜치가 `main`/`dev`라 안전하게 커밋할 수 없음.
 
 **이 목록이 멈춤의 전부다(닫힌 집합).** 여기에 해당하지 않는 모든 결정은 합리적 기본값으로 진행하고 묻지 않는다.
+
+## worktree 동시작업 규약
+
+여러 작업을 동시에 진행할 때는 `git worktree`로 브랜치별 워킹트리를 분리한다. 사람이 worktree마다 별도 Claude Code 세션(= 각각 독립된 개발자 메인 세션)을 띄워 병렬로 작업한다.
+
+- **세션 단위**: worktree 1개 = 개발자 세션 1개. 두 작업을 동시에 = 메인 세션 2개가 각자의 worktree에서 독립 실행된다(세션 간 컨텍스트는 공유되지 않는다).
+- **생성 위치**: worktree는 **저장소 트리 밖 형제 디렉터리**(`../<repo>-<task>`)에 만든다. **저장소 내부(예: `.claude/worktrees/`)에는 두지 않는다** — tsc/vitest 글로빙과 `.gitignore`가 그 트리를 untracked/중첩 repo로 오인한다.
+- **생성 방법**: `node scripts/worktree-add.mjs <branch>` 를 쓴다(형제 경로 산출 + `dev`에서 분기). 플래그:
+  - `--install` : 그 worktree에서 npm install까지 한다.
+  - `--launch` : `--install` 을 포함하고, 생성·설치 후 **그 worktree에서 개발 세션을 새 터미널 창에서 자동 실행**한다(macOS=Terminal.app/osascript, Windows=새 PowerShell 창/cmd start + `-EncodedCommand`). seed 는 브랜치에서 도출하며(또는 `--seed "<문구>"`로 지정), 새 세션은 `load-spec` 가 spec 을 자동 주입한다. 미지원 플랫폼/실패 시 기동 명령(`cd '<path>' && claude '<seed>'`) 출력으로 폴백한다. 미등록 브랜치/누락 spec 이면 경고만 한다(차단 안 함).
+  - 수동이면 `git worktree add -b <branch> ../<repo>-<task> dev`.
+- **분기 기준**: worktree는 항상 **최신 `dev`에서 분기**한다. 오래된 커밋에서 자르면 그 시점의 (stale) 훅/설정을 쓰게 됨을 유의한다. `core.hooksPath`는 공유 config라 worktree에 자동 적용된다.
+- **node_modules**: 새 worktree에는 `node_modules`가 따라오지 않는다. 각 worktree에서 `npm install`이 필요하다(`pre-push`가 그 트리에서 tsc/vitest를 돌리므로 install이 없으면 게이트가 실패한다). dev 서버를 동시에 띄우면 포트(Vite 5173)가 겹치므로 한쪽은 다른 포트를 쓴다.
+- **push**: 각 worktree 세션은 **자기 작업 브랜치만** push한다(브랜치가 다르므로 서로 충돌하지 않는다). 위 "자동 커밋 + push" 규약을 그대로 따른다.
+- **메인 체크아웃 금지(제품 소스, 하드)**: spec이 등록된 task 브랜치의 `src/` 코드 작업은 **worktree에서만** 한다. 메인 체크아웃에서 그 코드를 편집하면 `verify-branch` 훅이 **`deny`로 차단**한다 — 단일 작업이어도 예외 없이 worktree를 쓴다. `harness/`·`.claude/` 하네스 메타작업(spec·qa-checklist·CLAUDE.md·훅)은 면제다 — 이들은 메인에서 그대로 수정한다.
+- **정리**: 작업이 끝나면 `git worktree remove <path>` 로 제거한다(미커밋 잔여가 있으면 브랜치 삭제가 막힌다). 디렉터리 삭제는 비가역이므로 자동화하지 않고 사람이 수행한다.
+
+### harness/index.json 동시 편집 규약
+`harness/index.json`은 모든 작업이 공유하는 단일 파일을 브랜치별로 편집하므로, worktree 병렬 작업 시 머지 충돌이 쉽게 난다. 이를 막기 위해:
+
+- index.json 편집(새 task 등록 등)은 **한 시점에 한 세션만** 수행한다.
+- 편집은 **최신 `dev` 기준**으로 하고, 등록 후 **즉시 머지/rebase**해 다른 worktree와 벌어지지 않게 한다.
+- 코드 작업 세션은 index.json을 건드리지 않는 것을 기본으로 한다 — 코드/테스트/qa-checklist만 수정한다.
 
 ## 검증 명령
 - 타입: `npm run type-check` (= `tsc --noEmit`)
