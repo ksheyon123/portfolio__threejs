@@ -1,4 +1,6 @@
 {
-  "tasks": {},
+  "tasks": {
+    "feat/rigging-skeletal": "harness/rigging-skeletal/spec.md"
+  },
   "components": {}
 }
